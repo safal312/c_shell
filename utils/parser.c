@@ -12,6 +12,7 @@ int parse_input(char* input, char** tokens) {
         arg = strtok(NULL, " \t\n");
         counter++;
     }
+    tokens[counter] = NULL;
     
     return counter;
 }
