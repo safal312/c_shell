@@ -24,20 +24,20 @@ void trim(char* str) {
 int parse_input(char* input, char** commands, char* delims) {
     trim(input);
     char* input_copy = strdup(input);
-    char* arg = strtok(input, "|><");
+    char* arg = strtok(input, "|");
     int counter = 0;
     int delim_counter = 0;
 
     while (arg != NULL) {
         trim(arg);
         commands[counter] = strdup(arg);
-        arg = strtok(NULL, "|><");
+        arg = strtok(NULL, "|");
         counter++;
     }
     commands[counter] = NULL;
     
     for (int i = 0; input_copy[i] != '\0'; i++) {
-        if (input_copy[i] == '|' || input_copy[i]=='<' || input_copy[i]=='>') {
+        if (input_copy[i] == '|') {
             delims[delim_counter] = input_copy[i];
             delim_counter++;
         }

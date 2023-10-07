@@ -46,7 +46,7 @@ void execute(char** commands, char* delims, int commands_count) {
     int pipes[commands_count-1][2];
 
     for (int i = 0; i < commands_count; i++) {
-        if (i != commands_count - 1 && pipe(pipes[i]) == -1) {
+        if (i != commands_count - 1 && delims[i] == '|' && pipe(pipes[i]) == -1) {
             perror("pipe failed");
             exit(1);
         }
