@@ -1,2 +1,1 @@
-void execute_command(char**);
-void execute(char**, int);
+void execute(char**, char*, int);
