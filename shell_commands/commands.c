@@ -4,20 +4,35 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <string.h>
+#include <fcntl.h> // for open
 
 #include "commands.h"
 
 void execute_command(char* command, int input_fd, int output_fd) {
-    //redirect input
+    //redirect input if 
     if (input_fd != STDIN_FILENO) {
         dup2(input_fd, STDIN_FILENO);
         close(input_fd);
     }
 
-    //redirect output
+    //Determine whether to append or overwrite output
+    int output_flags = O_WRONLY | O_CREAT;
     if (output_fd != STDOUT_FILENO) {
-        dup2(output_fd, STDOUT_FILENO);
-        // close(output_fd);
+        if (output_fd == STDERR_FILENO){
+            //Redirecting to STDERR
+            dup2(STDERR_FILENO, STDOUT_FILENO);
+            close(STDERR_FILENO);
+        }
+        else if (output_fd == STDOUT_FILENO + 1){
+            //Append(>>) to the output file
+            output_flags |= O_APPEND;
+            output_fd = STDOUT_FILENO; //Reset output_fd to STDOUT_FILENO
+        }
+        else{
+            //Redirect to the specified file
+            dup2(output_fd, STDOUT_FILENO);
+            close(output_fd);
+        }
     }
 
     // printf("Input fd: %d, output fd: %d\n", input_fd, output_fd);
@@ -25,14 +40,71 @@ void execute_command(char* command, int input_fd, int output_fd) {
     char* arguments[50];
     char* arg = strtok(command, " ");
     int arg_counter = 0;
+    int input_redirection = 0;
+    int output_redirection = 0;
+    char input_file[50];
+    char output_file[50];
 
     while (arg != NULL) {
-        arguments[arg_counter] = strdup(arg);    
+        if (strcmp(arg, "<") == 0){
+            arg = strtok(NULL, " "); //Get the input file name
+            if (arg != NULL) {
+                strcpy(input_file, arg);
+                input_redirection = 1;
+            }
+        }
+        else if (strcmp(arg, ">") == 0){
+            arg = strtok(NULL, " "); //Get the output file name
+            if (arg != NULL) {
+                strcpy(output_file, arg);
+                output_redirection = 1;
+            }
+        }
+        else if (strcmp(arg, ">>") == 0){
+            arg = strtok(NULL, " "); //Get the output file name
+            if (arg != NULL) {
+                strcpy(output_file, arg);
+                output_redirection = 2;
+            }
+        }
+        else{
+            arguments[arg_counter] = strdup(arg);    
+            arg_counter++;
+        }
         arg = strtok(NULL, " ");
-        arg_counter++;
     }
     arguments[arg_counter] = NULL;
 
+    //Checking for missing argunments
+    // if (arguments[0] == NULL) {
+    //     fprintf(stderr, "Command missing arguments.\n");
+    //     exit(1);
+    // }
+
+    // Input redirection
+    if (input_redirection) {
+        int input_fd = open(input_file, O_RDONLY);
+        if (input_fd == -1) {
+            perror("Input redirection error");
+            exit(1);
+        }
+        dup2(input_fd, STDIN_FILENO);
+        close(input_fd);
+    }
+
+    // Output redirection
+    if (output_redirection) {
+        int output_fd;
+        if (output_redirection == 1) {
+            // Redirect with truncation (`>`)
+            output_fd = open(output_file, output_flags | O_TRUNC, 0666);
+        } else {
+            // Redirect with append (`>>`)
+            output_fd = open(output_file, output_flags | O_APPEND, 0666);
+        }
+        dup2(output_fd, STDOUT_FILENO);
+        close(output_fd);
+    }
     int status = execvp(arguments[0], arguments);
 
     //exit if failed to run command
