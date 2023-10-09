@@ -4,6 +4,7 @@
 #include "parser.h"
 
 // https://saturncloud.io/blog/best-algorithm-to-strip-leading-and-trailing-spaces-in-c/
+// helper function that remooves trailing and leading whitespace characters
 void trim(char* str) {
     int start = 0;
     int end = strlen(str) - 1;
@@ -25,10 +26,9 @@ void trim(char* str) {
 int parse_input(char* input, char** commands) {
     // remove trailing or leading whitespace or newline characters
     trim(input);
-    // char* input_copy = strdup(input);
+    // initially we only split on pipes
     char* arg = strtok(input, "|");
     int counter = 0;
-    // int delim_counter = 0;
 
     while (arg != NULL) {
         // remove trailing or leading whitespace or newline characters
@@ -38,13 +38,6 @@ int parse_input(char* input, char** commands) {
         counter++;
     }
     commands[counter] = NULL;
-    
-    // for (int i = 0; input_copy[i] != '\0'; i++) {
-    //     if (input_copy[i] == '|') {
-    //         delims[delim_counter] = input_copy[i];
-    //         delim_counter++;
-    //     }
-    // }
     
     return counter;
 }

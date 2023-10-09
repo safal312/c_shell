@@ -33,72 +33,7 @@ void execute_command(char* command, int input_fd, int output_fd) {
     char output_file[50];
     char error_file[50];
 
-    // char delims[50];               // array to store the delimiters after parsing input
-    // int delim_counter = 0;
-    // for (int i = 0; command[i] != '\0'; i++) {
-    //     if (command[i] == '>' || command[i] == '<') {
-    //         delims[delim_counter] = command[i];
-    //         // printf("Delimiter: %c\n", delims[delim_counter]);
-    //         delim_counter++;
-    //     }
-    // }
-
-    // char* original_command = strdup(command);
-    // char* redirect_present = strpbrk(command, "<>");
-    // char* main_command;
-
-    // if (redirect_present != NULL) {
-    //     char* arg = strtok(command, "<>");
-    //     main_command = strdup(arg);
-    // } else {
-    //     main_command = strdup(command);
-    // }
-    
-    // // split then on spaces to get the command and its arguments
-    // char* arg = strtok(main_command, " ");
-    // while (arg != NULL) {
-    //     // printf("Arg: %s\n", arg);
-    //     arguments[arg_counter] = strdup(arg);    
-    //     arg_counter++;
-    //     arg = strtok(NULL, " ");
-    // }
-    // arguments[arg_counter] = NULL;
-    
-    // int counter = 0;
-    // if (redirect_present != NULL) {
-    //     arg = strtok(original_command, "<>");
-    //     // arg = strtok(NULL, "<>");
-    //     // printf("Arg after redirect: %s\n", arg);
-    //     while (arg != NULL) {
-    //         if (delims[counter] == '<') {
-    //             arg = strtok(NULL, "<>");
-    //             trim(arg);
-    //             if (arg) {
-    //                 strcpy(input_file, arg);
-    //                 input_redirection = 1;
-    //             }
-    //         } else if (delims[counter] == '>'){
-    //             if (arg[strlen(arg) - 1] == '2' && arg[strlen(arg) - 2] == ' ') {
-    //                 arg = strtok(NULL, "<>");
-    //                 trim(arg);
-    //                 if (arg) {
-    //                     strcpy(error_file, arg);
-    //                     error_redirection = 1;
-    //                 }
-    //             } else {
-    //                 arg = strtok(NULL, "<>");
-    //                 trim(arg);
-    //                 if (arg) {
-    //                     strcpy(output_file, arg);
-    //                     output_redirection = 1;
-    //                 }
-    //             }           
-    //         }
-    //         counter++;
-    //     }
-    // }
-
-    // int redirect_counter = 0;
+    // iterate over all tokens in command separated by space
     char* arg = strtok(command, " ");
     while (arg != NULL) {
         if (strcmp(arg, "<") == 0){
@@ -107,16 +42,13 @@ void execute_command(char* command, int input_fd, int output_fd) {
                 strcpy(input_file, arg);
                 input_redirection = 1;
             }
-            // redirect_counter++;
         }
         else if (strcmp(arg, ">") == 0){
             arg = strtok(NULL, " "); //Get the output file name
-            // printf("file: %s\n", arg);
             if (arg != NULL) {
                 strcpy(output_file, arg);
                 output_redirection = 1;
             }
-            // redirect_counter++;
         } else if (strcmp(arg, "2>") == 0) {
             arg = strtok(NULL, " "); //Get the error file name
             if (arg != NULL) {
@@ -124,22 +56,20 @@ void execute_command(char* command, int input_fd, int output_fd) {
                 error_redirection = 1;
             }
         } else if (strcmp(arg, "2>>") == 0) {
-            arg = strtok(NULL, " "); //Get the error file name
+            arg = strtok(NULL, " "); //Get the error file name (append)
             if (arg != NULL) {
                 strcpy(error_file, arg);
                 error_redirection = 2;
             }
         } else if (strcmp(arg, ">>") == 0) {
-            arg = strtok(NULL, " "); //Get the output file name
+            arg = strtok(NULL, " "); //Get the output file name (append)
             if (arg != NULL) {
                 strcpy(output_file, arg);
                 output_redirection = 2;
             }
         }
         else{
-            char* redirect_present = strpbrk(arg, "<>");
-            
-
+            // store the token in the arguments array
             arguments[arg_counter] = strdup(arg);    
             arg_counter++;
         }
@@ -158,16 +88,17 @@ void execute_command(char* command, int input_fd, int output_fd) {
         close(input_fd);
     }
 
+    int output_flags = O_WRONLY | O_CREAT;
     // Error redirection
     if (error_redirection) {
         int error_fd;
         if (error_redirection == 1) {
             // Redirect with truncation (`>`)
-            error_fd = open(error_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+            error_fd = open(error_file, output_flags | O_TRUNC, 0666);
         } 
         else {
             // Redirect with append (`>>`)
-            error_fd = open(error_file, O_WRONLY | O_CREAT | O_APPEND, 0666);
+            error_fd = open(error_file, output_flags | O_APPEND, 0666);
         }
         dup2(error_fd, STDERR_FILENO);
         close(error_fd);
@@ -175,7 +106,6 @@ void execute_command(char* command, int input_fd, int output_fd) {
 
     // Output redirection
     //Determine whether to append or overwrite output
-    int output_flags = O_WRONLY | O_CREAT;
     if (output_redirection) {
         int output_fd;
         if (output_redirection == 1) {
@@ -188,6 +118,8 @@ void execute_command(char* command, int input_fd, int output_fd) {
         dup2(output_fd, STDOUT_FILENO);
         close(output_fd);
     }
+
+    // execute the command
     int status = execvp(arguments[0], arguments);
 
     //exit if failed to run command
@@ -198,9 +130,12 @@ void execute_command(char* command, int input_fd, int output_fd) {
 }
 
 void execute(char** commands, int commands_count) {
+    // array to store pipes
     int pipes[commands_count-1][2];
 
+    // iterate over all commands separated by pipes
     for (int i = 0; i < commands_count; i++) {
+        // create pipe for all non-last commands
         if (i != commands_count - 1 && pipe(pipes[i]) == -1) {
             perror("pipe failed");
             exit(1);
@@ -235,15 +170,12 @@ void execute(char** commands, int commands_count) {
             // we need to close writing end from parent so that it doesn't block the program
             // if it wasn't closed child would wait for the parent to write something
             if (i != commands_count - 1) close(pipes[i][1]);
-            // starting from the second command, we need to close reading end from parent
+            // starting from the second command, we need to close reading end from parent of the previous pipe
             // because we won't use it anymore
             if (i != 0) close(pipes[i-1][0]);
             //parent process
             int status;
             waitpid(pid, &status, 0);
-            
-            
         }
-        // execute_command(commands[i], STDIN_FILENO, STDOUT_FILENO);
     }
 }
