@@ -9,7 +9,7 @@
 #include "commands.h"
 
 void execute_command(char* command, int input_fd, int output_fd) {
-    //redirect input if 
+    //redirect input if input_fd is not standard input
     if (input_fd != STDIN_FILENO) {
         dup2(input_fd, STDIN_FILENO);
         close(input_fd);
@@ -18,12 +18,7 @@ void execute_command(char* command, int input_fd, int output_fd) {
     //Determine whether to append or overwrite output
     int output_flags = O_WRONLY | O_CREAT;
     if (output_fd != STDOUT_FILENO) {
-        if (output_fd == STDERR_FILENO){
-            //Redirecting to STDERR
-            dup2(STDERR_FILENO, STDOUT_FILENO);
-            close(STDERR_FILENO);
-        }
-        else if (output_fd == STDOUT_FILENO + 1){
+        if (output_fd == STDOUT_FILENO + 1){
             //Append(>>) to the output file
             output_flags |= O_APPEND;
             output_fd = STDOUT_FILENO; //Reset output_fd to STDOUT_FILENO
@@ -46,15 +41,16 @@ void execute_command(char* command, int input_fd, int output_fd) {
     char output_file[50];
 
     while (arg != NULL) {
-        if (strcmp(arg, "<") == 0){
+        if (strcmp(arg, "<") == 0 || arg[0] == '<'){
             arg = strtok(NULL, " "); //Get the input file name
             if (arg != NULL) {
                 strcpy(input_file, arg);
                 input_redirection = 1;
             }
         }
-        else if (strcmp(arg, ">") == 0){
+        else if (strcmp(arg, ">") == 0 || arg[0] == '>'){
             arg = strtok(NULL, " "); //Get the output file name
+            printf("arg: %s\n", arg);
             if (arg != NULL) {
                 strcpy(output_file, arg);
                 output_redirection = 1;
@@ -74,12 +70,6 @@ void execute_command(char* command, int input_fd, int output_fd) {
         arg = strtok(NULL, " ");
     }
     arguments[arg_counter] = NULL;
-
-    //Checking for missing argunments
-    // if (arguments[0] == NULL) {
-    //     fprintf(stderr, "Command missing arguments.\n");
-    //     exit(1);
-    // }
 
     // Input redirection
     if (input_redirection) {
@@ -118,7 +108,7 @@ void execute(char** commands, char* delims, int commands_count) {
     int pipes[commands_count-1][2];
 
     for (int i = 0; i < commands_count; i++) {
-        if (i != commands_count - 1 && delims[i] == '|' && pipe(pipes[i]) == -1) {
+        if (i != commands_count - 1 && pipe(pipes[i]) == -1) {
             perror("pipe failed");
             exit(1);
         }

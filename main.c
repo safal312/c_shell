@@ -9,9 +9,9 @@
 #include "shell_commands/commands.h"
 
 int main() {
-    char input[MAX_INPUT];
-    char* commands[MAX_COMMANDS];
-    char delims[MAX_COMMANDS-1];
+    char input[MAX_INPUT];          // array to store input from the terminal
+    char* commands[MAX_COMMANDS];   // array to store the commands after parsing input
+    char delims[MAX_COMMANDS-1];    // array to store the delimiters after parsing input
 
     while (1){
         printf("terminal> ");
@@ -30,14 +30,6 @@ int main() {
             }
             exit(0);
         }
-
-        // for (int i = 0; i < commands_count; i++) {
-        //     printf("%s\n", commands[i]);
-        // }
-
-        // for (int i = 0; i < commands_count-1; i++) {
-        //     printf("%c\n", delims[i]);
-        // }
 
         execute(commands, delims, commands_count);
     }
