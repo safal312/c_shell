@@ -1,1 +1,1 @@
-void execute(char**, char*, int);
+void execute(char**, int);

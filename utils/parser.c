@@ -22,13 +22,13 @@ void trim(char* str) {
     memmove(str, str + start, end - start + 2);
 }
 
-int parse_input(char* input, char** commands, char* delims) {
+int parse_input(char* input, char** commands) {
     // remove trailing or leading whitespace or newline characters
     trim(input);
-    char* input_copy = strdup(input);
+    // char* input_copy = strdup(input);
     char* arg = strtok(input, "|");
     int counter = 0;
-    int delim_counter = 0;
+    // int delim_counter = 0;
 
     while (arg != NULL) {
         // remove trailing or leading whitespace or newline characters
@@ -39,12 +39,12 @@ int parse_input(char* input, char** commands, char* delims) {
     }
     commands[counter] = NULL;
     
-    for (int i = 0; input_copy[i] != '\0'; i++) {
-        if (input_copy[i] == '|') {
-            delims[delim_counter] = input_copy[i];
-            delim_counter++;
-        }
-    }
+    // for (int i = 0; input_copy[i] != '\0'; i++) {
+    //     if (input_copy[i] == '|') {
+    //         delims[delim_counter] = input_copy[i];
+    //         delim_counter++;
+    //     }
+    // }
     
     return counter;
 }

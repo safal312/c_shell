@@ -15,42 +15,33 @@ void execute_command(char* command, int input_fd, int output_fd) {
         close(input_fd);
     }
 
-    //Determine whether to append or overwrite output
-    int output_flags = O_WRONLY | O_CREAT;
+    // redirect output if output_fd is not standard output
     if (output_fd != STDOUT_FILENO) {
-        if (output_fd == STDOUT_FILENO + 1){
-            //Append(>>) to the output file
-            output_flags |= O_APPEND;
-            output_fd = STDOUT_FILENO; //Reset output_fd to STDOUT_FILENO
-        }
-        else{
-            //Redirect to the specified file
-            dup2(output_fd, STDOUT_FILENO);
-            close(output_fd);
-        }
+        //Redirect to the specified file
+        dup2(output_fd, STDOUT_FILENO);
+        close(output_fd);
     }
 
-    // printf("Input fd: %d, output fd: %d\n", input_fd, output_fd);
-
-    char* arguments[50];
-    char* arg = strtok(command, " ");
-    int arg_counter = 0;
-    int input_redirection = 0;
-    int output_redirection = 0;
+    char* arguments[50];            // array to store each token of a command
+    int arg_counter = 0;            // count tokens in command
+    int input_redirection = 0;      // binary flag to check if input redirection is needed
+    int output_redirection = 0;     // binary flag to check if output redirection is needed
+    // filenames for input and output redirection
     char input_file[50];
     char output_file[50];
 
+    char* arg = strtok(command, " ");
     while (arg != NULL) {
-        if (strcmp(arg, "<") == 0 || arg[0] == '<'){
+        if (strcmp(arg, "<") == 0){
             arg = strtok(NULL, " "); //Get the input file name
             if (arg != NULL) {
                 strcpy(input_file, arg);
                 input_redirection = 1;
             }
         }
-        else if (strcmp(arg, ">") == 0 || arg[0] == '>'){
+        else if (strcmp(arg, ">") == 0){
             arg = strtok(NULL, " "); //Get the output file name
-            printf("arg: %s\n", arg);
+            // printf("arg: %s\n", arg);
             if (arg != NULL) {
                 strcpy(output_file, arg);
                 output_redirection = 1;
@@ -83,6 +74,8 @@ void execute_command(char* command, int input_fd, int output_fd) {
     }
 
     // Output redirection
+    //Determine whether to append or overwrite output
+    int output_flags = O_WRONLY | O_CREAT;
     if (output_redirection) {
         int output_fd;
         if (output_redirection == 1) {
@@ -104,7 +97,7 @@ void execute_command(char* command, int input_fd, int output_fd) {
     }
 }
 
-void execute(char** commands, char* delims, int commands_count) {
+void execute(char** commands, int commands_count) {
     int pipes[commands_count-1][2];
 
     for (int i = 0; i < commands_count; i++) {

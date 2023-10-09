@@ -11,13 +11,13 @@
 int main() {
     char input[MAX_INPUT];          // array to store input from the terminal
     char* commands[MAX_COMMANDS];   // array to store the commands after parsing input
-    char delims[MAX_COMMANDS-1];    // array to store the delimiters after parsing input
+    // char delims[MAX_COMMANDS-1];    // array to store the delimiters after parsing input
 
     while (1){
         printf("terminal> ");
         fgets(input, sizeof(input), stdin);
         
-        int commands_count = parse_input(input, commands, delims);
+        int commands_count = parse_input(input, commands);
 
         // check if input is empty or made with only whitespace characters
         if (commands_count == 0) {
@@ -31,7 +31,7 @@ int main() {
             exit(0);
         }
 
-        execute(commands, delims, commands_count);
+        execute(commands, commands_count);
     }
 
     return 0;
