@@ -27,93 +27,125 @@ void execute_command(char* command, int input_fd, int output_fd) {
     int arg_counter = 0;            // count tokens in command
     int input_redirection = 0;      // binary flag to check if input redirection is needed
     int output_redirection = 0;     // binary flag to check if output redirection is needed
+    int error_redirection = 0;      // binary flag to check if error redirection is needed
     // filenames for input and output redirection
     char input_file[50];
     char output_file[50];
+    char error_file[50];
 
-    char delims[50];               // array to store the delimiters after parsing input
-    int delim_counter = 0;
-    for (int i = 0; command[i] != '\0'; i++) {
-        if (command[i] == '>' || command[i] == '<') {
-            delims[delim_counter] = command[i];
-            // printf("Delimiter: %c\n", delims[delim_counter]);
-            delim_counter++;
-        }
-    }
+    // char delims[50];               // array to store the delimiters after parsing input
+    // int delim_counter = 0;
+    // for (int i = 0; command[i] != '\0'; i++) {
+    //     if (command[i] == '>' || command[i] == '<') {
+    //         delims[delim_counter] = command[i];
+    //         // printf("Delimiter: %c\n", delims[delim_counter]);
+    //         delim_counter++;
+    //     }
+    // }
 
-    char* original_command = strdup(command);
-    char* redirect_present = strpbrk(command, "<>");
-    char* main_command;
+    // char* original_command = strdup(command);
+    // char* redirect_present = strpbrk(command, "<>");
+    // char* main_command;
 
-    if (redirect_present != NULL) {
-        char* arg = strtok(command, "<>");
-        main_command = strdup(arg);
-    } else {
-        main_command = strdup(command);
-    }
+    // if (redirect_present != NULL) {
+    //     char* arg = strtok(command, "<>");
+    //     main_command = strdup(arg);
+    // } else {
+    //     main_command = strdup(command);
+    // }
     
-    // split then on spaces to get the command and its arguments
-    // printf("Main command: %s\n", main_command);
-    // exit(0);
-    char* arg = strtok(main_command, " ");
+    // // split then on spaces to get the command and its arguments
+    // char* arg = strtok(main_command, " ");
+    // while (arg != NULL) {
+    //     // printf("Arg: %s\n", arg);
+    //     arguments[arg_counter] = strdup(arg);    
+    //     arg_counter++;
+    //     arg = strtok(NULL, " ");
+    // }
+    // arguments[arg_counter] = NULL;
+    
+    // int counter = 0;
+    // if (redirect_present != NULL) {
+    //     arg = strtok(original_command, "<>");
+    //     // arg = strtok(NULL, "<>");
+    //     // printf("Arg after redirect: %s\n", arg);
+    //     while (arg != NULL) {
+    //         if (delims[counter] == '<') {
+    //             arg = strtok(NULL, "<>");
+    //             trim(arg);
+    //             if (arg) {
+    //                 strcpy(input_file, arg);
+    //                 input_redirection = 1;
+    //             }
+    //         } else if (delims[counter] == '>'){
+    //             if (arg[strlen(arg) - 1] == '2' && arg[strlen(arg) - 2] == ' ') {
+    //                 arg = strtok(NULL, "<>");
+    //                 trim(arg);
+    //                 if (arg) {
+    //                     strcpy(error_file, arg);
+    //                     error_redirection = 1;
+    //                 }
+    //             } else {
+    //                 arg = strtok(NULL, "<>");
+    //                 trim(arg);
+    //                 if (arg) {
+    //                     strcpy(output_file, arg);
+    //                     output_redirection = 1;
+    //                 }
+    //             }           
+    //         }
+    //         counter++;
+    //     }
+    // }
+
+    // int redirect_counter = 0;
+    char* arg = strtok(command, " ");
     while (arg != NULL) {
-        // printf("Arg: %s\n", arg);
-        arguments[arg_counter] = strdup(arg);    
-        arg_counter++;
+        if (strcmp(arg, "<") == 0){
+            arg = strtok(NULL, " "); //Get the input file name
+            if (arg != NULL) {
+                strcpy(input_file, arg);
+                input_redirection = 1;
+            }
+            // redirect_counter++;
+        }
+        else if (strcmp(arg, ">") == 0){
+            arg = strtok(NULL, " "); //Get the output file name
+            // printf("file: %s\n", arg);
+            if (arg != NULL) {
+                strcpy(output_file, arg);
+                output_redirection = 1;
+            }
+            // redirect_counter++;
+        } else if (strcmp(arg, "2>") == 0) {
+            arg = strtok(NULL, " "); //Get the error file name
+            if (arg != NULL) {
+                strcpy(error_file, arg);
+                error_redirection = 1;
+            }
+        } else if (strcmp(arg, "2>>") == 0) {
+            arg = strtok(NULL, " "); //Get the error file name
+            if (arg != NULL) {
+                strcpy(error_file, arg);
+                error_redirection = 2;
+            }
+        } else if (strcmp(arg, ">>") == 0) {
+            arg = strtok(NULL, " "); //Get the output file name
+            if (arg != NULL) {
+                strcpy(output_file, arg);
+                output_redirection = 2;
+            }
+        }
+        else{
+            char* redirect_present = strpbrk(arg, "<>");
+            
+
+            arguments[arg_counter] = strdup(arg);    
+            arg_counter++;
+        }
         arg = strtok(NULL, " ");
     }
     arguments[arg_counter] = NULL;
-    
-    int counter = 0;
-    if (redirect_present != NULL) {
-        arg = strtok(original_command, "<>");
-        arg = strtok(NULL, "<>");
-        // printf("Arg after redirect: %s\n", arg);
-        while (arg != NULL) {
-            trim(arg);
-            if (delims[counter] == '<') {
-                strcpy(input_file, arg);
-                arg = strtok(NULL, "<>");
-                input_redirection = 1;
-            } else if (delims[counter] == '>'){
-                strcpy(output_file, arg);
-                arg = strtok(NULL, "<>");
-                output_redirection = 1;
-            }
-            counter++;
-        }
-    }
-
-    // printf("Input file: %s\n", input_file);
-    // printf("Out file: %s\n", output_file);
-    // exit(0);
-    // int redirect_counter = 0;
-    // char* arg = strtok(command, delim_chars);
-    // while (arg != NULL) {
-    //     if (delim_counter > 0 && delims[redirect_counter] == '<'){
-    //         arg = strtok(NULL, " "); //Get the input file name
-    //         if (arg != NULL) {
-    //             strcpy(input_file, arg);
-    //             input_redirection = 1;
-    //         }
-    //         redirect_counter++;
-    //     }
-    //     else if (delims[redirect_counter] == '>'){
-    //         arg = strtok(NULL, " "); //Get the output file name
-    //         printf("file: %s\n", arg);
-    //         if (arg != NULL) {
-    //             strcpy(output_file, arg);
-    //             output_redirection = 1;
-    //         }
-    //         redirect_counter++;
-    //     }
-    //     else{
-    //         arguments[arg_counter] = strdup(arg);    
-    //         arg_counter++;
-    //     }
-    //     arg = strtok(NULL, delim_chars);
-    // }
-    // arguments[arg_counter] = NULL;
 
     // Input redirection
     if (input_redirection) {
@@ -124,6 +156,21 @@ void execute_command(char* command, int input_fd, int output_fd) {
         }
         dup2(input_fd, STDIN_FILENO);
         close(input_fd);
+    }
+
+    // Error redirection
+    if (error_redirection) {
+        int error_fd;
+        if (error_redirection == 1) {
+            // Redirect with truncation (`>`)
+            error_fd = open(error_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        } 
+        else {
+            // Redirect with append (`>>`)
+            error_fd = open(error_file, O_WRONLY | O_CREAT | O_APPEND, 0666);
+        }
+        dup2(error_fd, STDERR_FILENO);
+        close(error_fd);
     }
 
     // Output redirection
