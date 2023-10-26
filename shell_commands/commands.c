@@ -120,8 +120,9 @@ void execute_command(char* command, int input_fd, int output_fd) {
     }
 
     // execute the command
+    // printf("Executing command: %s\n", arguments[0]);
     int status = execvp(arguments[0], arguments);
-
+    // printf("Command executed\n");
     //exit if failed to run command
     if (status == -1) {
         perror("Error executing command");
@@ -129,10 +130,10 @@ void execute_command(char* command, int input_fd, int output_fd) {
     }
 }
 
-void execute(char** commands, int commands_count) {
+void execute(char** commands, int commands_count, int c_socket) {
     // array to store pipes
     int pipes[commands_count-1][2];
-
+    
     // iterate over all commands separated by pipes
     for (int i = 0; i < commands_count; i++) {
         // create pipe for all non-last commands
@@ -156,13 +157,16 @@ void execute(char** commands, int commands_count) {
                 input_fd = pipes[i-1][0];
             } else {
                 // if it is the first command, close the reading end of pipe
-                close(pipes[i][0]);
+                if (commands_count > 1) close(pipes[i][0]);
             }
 
             // if the command is not the last one, redirect output to the writing end of pipe
             if (i != commands_count-1) {
                 output_fd = pipes[i][1];
-            } 
+            } else {
+                // if it is the last one, redirect to the client socket
+                output_fd = c_socket;
+            }
 
             execute_command(commands[i], input_fd, output_fd);
         }
