@@ -64,12 +64,12 @@ int main() {
 	// infinite loop for the terminal
 	for (;;) {
         char input[MAX_INPUT];          // array to store input from the terminal
-		bzero(input, MAX);
+		bzero(input, sizeof(input));
 
 		// read the message from client and copy it in buffer
 		recv(client_socket , &input , sizeof(input),0);
 
-		if (input == NULL) continue;
+		// if (input == NULL) continue;
 		
         // execution loop
         char* commands[MAX_COMMANDS];   // array to store the commands after parsing input

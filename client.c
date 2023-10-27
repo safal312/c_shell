@@ -4,34 +4,48 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-#define MAX 2048
+#define MAX 1024
+#define MAX_OUT 4096
 #define PORT 5600
 #define SA struct sockaddr
 
 void func(int sock)
 {
 	char buff[MAX];
+	char output[MAX_OUT];
+
 	int n;
 	for (;;) {
-		
-		//bzero(void *s, int nbyte): places nbyte null bytes in the string s
 		bzero(buff, sizeof(buff));
 		printf("terminal> ");
 		n = 0;
 		
 		// copy  message in the buffer
-		while ((buff[n++] = getchar()) != '\n'){}
+		// while ((buff[n++] = getchar()) != '\n'){}
 
+        fgets(buff, sizeof(buff), stdin);         // get input from the terminal
+		buff[strlen(buff) - 1] = '\0';            // remove the newline character from the input
+
+		printf("Sending: %s\n", buff);
 		send(sock , buff , sizeof(buff),0);
 		if ((strncmp(buff, "exit", 4)) == 0) {
 			printf("Client Exit...\n");
 			break;
 		}
 
-		bzero(buff, sizeof(buff));
+		bzero(output, sizeof(output));
 		
-		recv(sock , &buff , sizeof(buff),0);
-		printf("From Server : %s", buff);
+		// print the stdout
+		recv(sock , &output , sizeof(output),0);
+		output[strlen(output)] = '\0';
+		printf("%s", output);
+
+		// bzero(output, sizeof(output));
+
+		// // print the stderr
+		// recv(sock , &output , sizeof(output),0);
+		// output[strlen(output)] = '\0';
+		// printf("%s", output);
 
 	}
 }

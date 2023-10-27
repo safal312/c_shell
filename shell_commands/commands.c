@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <fcntl.h> // for open
+#include <sys/socket.h>
 
 #include "commands.h"
 #include "../utils/parser.h"
@@ -133,6 +134,13 @@ void execute_command(char* command, int input_fd, int output_fd) {
 void execute(char** commands, int commands_count, int c_socket) {
     // array to store pipes
     int pipes[commands_count-1][2];
+    int stdout_pipe[2];
+    int stderr_pipe[2];
+
+    if (pipe(stdout_pipe) < 0 || pipe(stderr_pipe) < 0) {
+        perror("Pipe creation failed");
+        exit(EXIT_FAILURE);
+    }
     
     // iterate over all commands separated by pipes
     for (int i = 0; i < commands_count; i++) {
@@ -148,6 +156,14 @@ void execute(char** commands, int commands_count, int c_socket) {
             exit(1);
         }
         else if(pid == 0){
+            // close reading end of stderr and stdout pipes
+            close(stdout_pipe[0]);
+            close(stderr_pipe[0]);
+
+            // replace stderr with writing end of stderr_pipe
+            dup2(stderr_pipe[1], STDERR_FILENO);
+            close(stderr_pipe[1]);
+
             //child process
             int input_fd = STDIN_FILENO;
             int output_fd = STDOUT_FILENO;
@@ -165,7 +181,7 @@ void execute(char** commands, int commands_count, int c_socket) {
                 output_fd = pipes[i][1];
             } else {
                 // if it is the last one, redirect to the client socket
-                output_fd = c_socket;
+                output_fd = stdout_pipe[1];
             }
 
             execute_command(commands[i], input_fd, output_fd);
@@ -182,4 +198,37 @@ void execute(char** commands, int commands_count, int c_socket) {
             waitpid(pid, &status, 0);
         }
     }
+
+    // close writing end of stderr and stdout pipes
+    close(stdout_pipe[1]);
+    close(stderr_pipe[1]);
+
+    // send the output to the client from stdout and stderr pipes
+    char buffer[4096];
+    bzero(buffer, sizeof(buffer));
+
+    // int stdout_bytes = 0;
+
+    // Read and send stdout to the client
+    // while (1) {
+        ssize_t stdout_bytes = read(stdout_pipe[0], buffer, sizeof(buffer));
+        printf("Read %ld bytes from stdout\n", stdout_bytes);
+        // if (nbytes <= 0) break;
+        // Send buffer to the client
+        // send(c_socket, buffer, sizeof(buffer), 0);
+    // }
+    // bzero(buffer, sizeof(buffer));
+
+    // Read and send stderr to the client
+    // while (1) {
+        ssize_t nbytes = read(stderr_pipe[0], buffer + stdout_bytes, sizeof(buffer) - stdout_bytes);
+        printf("Read %ld bytes from stderr\n", nbytes);
+        // if (nbytes <= 0) break;
+        // Send buffer to the client
+        // send(c_socket, buffer, sizeof(buffer), 0);
+    // }
+    if (strlen(buffer) == 0) buffer[0] = '\0';
+
+    send(c_socket, buffer, sizeof(buffer), 0);
+    bzero(buffer, sizeof(buffer));
 }
