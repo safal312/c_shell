@@ -15,7 +15,7 @@
 #include "shell_commands/commands.h"        // for executing commands
 
 int main() {
-    
+    // variables to store server and client socket
 	int server_socket, client_socket;
 	struct sockaddr_in servaddr, cli;
 
@@ -49,6 +49,7 @@ int main() {
 	}
 	else
 		printf("Server listening..\n");
+	
 	int addrlen = sizeof(cli);
 
 	// Accept the data packet from client and verification
@@ -60,7 +61,6 @@ int main() {
 	else
 		printf("server accept the client...\n");
 
-    // char buff[MAX];
 	// infinite loop for the terminal
 	for (;;) {
         char input[MAX_INPUT];          // array to store input from the terminal
@@ -68,16 +68,8 @@ int main() {
 
 		// read the message from client and copy it in buffer
 		recv(client_socket , &input , sizeof(input),0);
-
-		// if (input == NULL) continue;
 		
-        // execution loop
         char* commands[MAX_COMMANDS];   // array to store the commands after parsing input
-        
-        // // print buffer which contains the client contents
-        printf("From client: %s\n", input);
-        // printf("terminal> ");
-        // fgets(input, sizeof(input), stdin);         // get input from the terminal
         
         // parse the input and store the commands in the commands array
         // this separates the commands by pipes
@@ -94,7 +86,6 @@ int main() {
             close(client_socket);
             printf("Disconnecting Client\n...");
             break;
-            // exit(0);
         }
         
         // execute the commands

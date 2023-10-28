@@ -11,26 +11,23 @@
 
 void func(int sock)
 {
-	char buff[MAX];
-	char output[MAX_OUT];
+	char buff[MAX];				// buffer to store input from terminal
+	char output[MAX_OUT];		// buffer to receive from server and print it
 
-	int n;
 	for (;;) {
 		bzero(buff, sizeof(buff));
 		printf("terminal> ");
-		n = 0;
 		
-		// copy  message in the buffer
-		// while ((buff[n++] = getchar()) != '\n'){}
-
         fgets(buff, sizeof(buff), stdin);         // get input from the terminal
 		buff[strlen(buff) - 1] = '\0';            // remove the newline character from the input
-		// printf("buff: %c\n", buff[strlen(buff) - 1]);
+
+		// invalid if the ending character is special
 		if(buff[strlen(buff) - 1] == '|' || buff[strlen(buff) - 1] == '>' || buff[strlen(buff) - 1] == '<') {
 			printf("Invalid input\n");
 			continue;
     	}
 
+		// send command to the server from client
 		printf("Sending: %s\n", buff);
 		send(sock , buff , sizeof(buff),0);
 		if ((strncmp(buff, "exit", 4)) == 0) {
@@ -44,21 +41,13 @@ void func(int sock)
 		recv(sock , &output , sizeof(output),0);
 		output[strlen(output)] = '\0';
 		printf("%s", output);
-
-		// bzero(output, sizeof(output));
-
-		// // print the stderr
-		// recv(sock , &output , sizeof(output),0);
-		// output[strlen(output)] = '\0';
-		// printf("%s", output);
-
 	}
 }
 
 int main()
 {
 	int sock;
-	struct sockaddr_in servaddr, cli;
+	struct sockaddr_in servaddr;
 
 	// socket create and verification
 	sock = socket(AF_INET, SOCK_STREAM, 0);

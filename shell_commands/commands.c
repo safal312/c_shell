@@ -121,9 +121,8 @@ void execute_command(char* command, int input_fd, int output_fd) {
     }
 
     // execute the command
-    // printf("Executing command: %s\n", arguments[0]);
     int status = execvp(arguments[0], arguments);
-    // printf("Command executed\n");
+    
     //exit if failed to run command
     if (status == -1) {
         perror("Error executing command");
@@ -134,6 +133,7 @@ void execute_command(char* command, int input_fd, int output_fd) {
 void execute(char** commands, int commands_count, int c_socket) {
     // array to store pipes
     int pipes[commands_count-1][2];
+    // pipe to store stdout and stderr to send to client
     int stdout_pipe[2];
     int stderr_pipe[2];
 
@@ -206,29 +206,16 @@ void execute(char** commands, int commands_count, int c_socket) {
     // send the output to the client from stdout and stderr pipes
     char buffer[4096];
     bzero(buffer, sizeof(buffer));
-
-    // int stdout_bytes = 0;
-
-    // Read and send stdout to the client
-    // while (1) {
-        ssize_t stdout_bytes = read(stdout_pipe[0], buffer, sizeof(buffer));
-        printf("Read %ld bytes from stdout\n", stdout_bytes);
-        // if (nbytes <= 0) break;
-        // Send buffer to the client
-        // send(c_socket, buffer, sizeof(buffer), 0);
-    // }
-    // bzero(buffer, sizeof(buffer));
-
-    // Read and send stderr to the client
-    // while (1) {
-        ssize_t nbytes = read(stderr_pipe[0], buffer + stdout_bytes, sizeof(buffer) - stdout_bytes);
-        printf("Read %ld bytes from stderr\n", nbytes);
-        // if (nbytes <= 0) break;
-        // Send buffer to the client
-        // send(c_socket, buffer, sizeof(buffer), 0);
-    // }
+    // read data from stdout pipe and store it in the buffer
+    ssize_t stdout_bytes = read(stdout_pipe[0], buffer, sizeof(buffer));
+    
+    // Read stderr and add it to the buffer
+    read(stderr_pipe[0], buffer + stdout_bytes, sizeof(buffer) - stdout_bytes);
+    
+    // if buffer is empty add a null character before sending
     if (strlen(buffer) == 0) buffer[0] = '\0';
 
+    // send the buffer to the client
     send(c_socket, buffer, sizeof(buffer), 0);
     bzero(buffer, sizeof(buffer));
 }
