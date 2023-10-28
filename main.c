@@ -84,7 +84,7 @@ int main() {
         int commands_count = parse_input(input, commands);
 
         // check if input is empty or made with only whitespace characters
-        if (commands_count == 0) {
+        if (commands_count <= 0) {
             continue;
         }
 

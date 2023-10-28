@@ -25,6 +25,11 @@ void func(int sock)
 
         fgets(buff, sizeof(buff), stdin);         // get input from the terminal
 		buff[strlen(buff) - 1] = '\0';            // remove the newline character from the input
+		// printf("buff: %c\n", buff[strlen(buff) - 1]);
+		if(buff[strlen(buff) - 1] == '|' || buff[strlen(buff) - 1] == '>' || buff[strlen(buff) - 1] == '<') {
+			printf("Invalid input\n");
+			continue;
+    	}
 
 		printf("Sending: %s\n", buff);
 		send(sock , buff , sizeof(buff),0);

@@ -26,6 +26,7 @@ void trim(char* str) {
 int parse_input(char* input, char** commands) {
     // remove trailing or leading whitespace or newline characters
     trim(input);
+    
     // initially we only split on pipes
     char* arg = strtok(input, "|");
     int counter = 0;
