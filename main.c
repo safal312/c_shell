@@ -11,55 +11,83 @@
 #define PORT 5600
 #define SA struct sockaddr
 
+#include <pthread.h>
+
+//compile using -lpthread
+//run multiple clients in several terminal windows
+void* ThreadRun(void *);
+
 #include "utils/parser.h"           // for parse_input
 #include "shell_commands/commands.h"        // for executing commands
 
-int main() {
-    // variables to store server and client socket
-	int server_socket, client_socket;
-	struct sockaddr_in servaddr, cli;
+int main(int argc, char const *argv[]) 
+{ 
+	int server_fd, new_socket; 
+	struct sockaddr_in address; 
 
-	// socket create and verification
-	server_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (server_socket == -1) {
-		printf("socket creation failed...\n");
-		exit(0);
+	int addrlen = sizeof(address); 
+
+	// Creating socket file descriptor 
+	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) 
+	{ 
+			perror("socket failed"); 
+			exit(EXIT_FAILURE); 
+	} 
+
+	int value  = 1;
+	setsockopt(server_fd,SOL_SOCKET,SO_REUSEADDR,&value,sizeof(value)); //&(int){1},sizeof(int)
+
+	address.sin_family = AF_INET; 
+	address.sin_addr.s_addr = INADDR_ANY; 
+	address.sin_port = htons( PORT ); 
+
+	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address))<0) 
+	{ 
+		perror("bind failed"); 
+		exit(EXIT_FAILURE); 
+	} 
+
+	//keep listeninig for incoming connections
+	while(1)
+	{
+			if (listen(server_fd, 3) < 0) 
+			{ 
+					perror("listen"); 
+					exit(EXIT_FAILURE); 
+			} 
+			if ((new_socket = accept(server_fd, (struct sockaddr *)&address, 
+											(socklen_t*)&addrlen))<0) 
+			{ 
+					perror("accept"); 
+					exit(EXIT_FAILURE); 
+			} 
+
+			/*enhance performance and resource consumption by declaring
+			it as a detached thread,
+			so there is no need to wait for the thread to terminate
+			No other threads are waiting on it
+			The server will keep running after the termination of this thread*/
+			pthread_t th;
+			pthread_attr_t attr;
+			pthread_attr_init(&attr);
+			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+			pthread_create(&th,&attr,ThreadRun,&new_socket);
+
+			/*
+			alternative way of declaration:
+			pthread_t th;
+			pthread_create(&th,NULL,ThreadRun,&new_socket);
+			*/
 	}
-	else
-		printf("Socket successfully created..\n");
-	
+    close(server_fd);
+    return 0;
+}
 
-	// assign IP, PORT
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servaddr.sin_port = htons(PORT);
 
-	// Binding newly created socket to given IP and verification
-	if ((bind(server_socket, (SA*)&servaddr, sizeof(servaddr))) != 0) {
-		printf("socket bind failed...\n");
-		exit(0);
-	}
-	else
-		printf("Socket successfully binded..\n");
-
-	// Now server is ready to listen and verification
-	if ((listen(server_socket, 5)) != 0) {
-		printf("Listen failed...\n");
-		exit(0);
-	}
-	else
-		printf("Server listening..\n");
-	
-	int addrlen = sizeof(cli);
-
-	// Accept the data packet from client and verification
-	client_socket = accept(server_socket, (SA*)&cli, (socklen_t *) &addrlen);
-	if (client_socket < 0) {
-		printf("server accept failed...\n");
-		exit(0);
-	}
-	else
-		printf("server accept the client...\n");
+void* ThreadRun(void * socket){
+	int *sock=(int*)socket;
+    int s=*sock;
 
 	// infinite loop for the terminal
 	for (;;) {
@@ -67,7 +95,7 @@ int main() {
 		bzero(input, sizeof(input));
 
 		// read the message from client and copy it in buffer
-		recv(client_socket , &input , sizeof(input),0);
+		recv(s , &input , sizeof(input),0);
 		
         char* commands[MAX_COMMANDS];   // array to store the commands after parsing input
         
@@ -83,15 +111,14 @@ int main() {
         // check if the user wants to exit the terminal
         if (strcmp(commands[0], "exit") == 0) {
             // close the socket
-            close(client_socket);
+            close(s);
             printf("Disconnecting Client\n...");
             break;
         }
         
         // execute the commands
-        execute(commands, commands_count, client_socket);
+        execute(commands, commands_count, s);
 	}
-    close(server_socket);
-
-    return 0;
+	close(s);
+    return NULL;
 }
