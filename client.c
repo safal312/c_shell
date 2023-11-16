@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #define MAX 1024
 #define MAX_OUT 4096
 #define PORT 5600
@@ -15,8 +18,8 @@ void func(int sock)
 	char output[MAX_OUT];		// buffer to receive from server and print it
 
 	for (;;) {
-		bzero(buff, sizeof(buff));
-		printf("terminal> ");
+		bzero(buff, sizeof(buff));					//making buff array zero
+		printf("\nterminal> ");
 		
         fgets(buff, sizeof(buff), stdin);         // get input from the terminal
 		buff[strlen(buff) - 1] = '\0';            // remove the newline character from the input
@@ -28,17 +31,25 @@ void func(int sock)
     	}
 
 		// send command to the server from client
-		printf("Sending: %s\n", buff);
-		send(sock , buff , sizeof(buff),0);
+		// printf("Sending: %s\n", buff);
+		if (send(sock, buff, sizeof(buff), 0) == -1) {
+            perror("Error sending to server");
+            break;
+        }
+
 		if ((strncmp(buff, "exit", 4)) == 0) {
 			printf("Client Exit...\n");
 			break;
 		}
-
 		bzero(output, sizeof(output));
-		
+
+		// receive output from server
+		if (recv(sock, &output, sizeof(output), 0) == -1) {
+            perror("Error recieving from server");
+            break;
+        }
+
 		// print the stdout
-		recv(sock , &output , sizeof(output),0);
 		output[strlen(output)] = '\0';
 		printf("%s", output);
 	}
@@ -65,15 +76,16 @@ int main()
 
 	// connect the client socket to server socket
 	if (connect(sock, (SA*)&servaddr, sizeof(servaddr)) != 0) {
-		printf("connection with the server failed...\n");
+		printf("Connection with the server failed...\n");
 		exit(0);
 	}
 	else
-		printf("connected to the server..\n");
+		printf("Connected to the server..\n");
 
 	// function for chat
 	func(sock);
 
 	// close the socket
 	close(sock);
+	return 0;
 }
