@@ -14,7 +14,7 @@
 CC = gcc
 CFLAGS = -Wall -pthread
 
-server: main.c utils/parser.c shell_commands/commands.c
+server: main.c utils/parser.c utils/waitlist.c utils/scheduler.c shell_commands/commands.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 client: client.c

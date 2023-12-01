@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -9,20 +10,37 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 #define MAX 80
 #define PORT 5600
 #define SA struct sockaddr
 
+#define DEFAULT_WAIT_TIME 100
+
 //compile using -lpthread
 //run multiple clients in several terminal windows
 void* ThreadRun(void *);
+void* scheduler_thread(void*);
 
 #include "utils/parser.h"           // for parse_input
 #include "shell_commands/commands.h"        // for executing commands
+#include "utils/waitlist.h"			// for waitlist
+#include "globals.h"
+
+typedef struct {
+	int socket;
+	pthread_t* thread;
+} thread_args;
+
+sem_t continue_semaphore, add_node_sm;
+ThreadNode* waiting_list = NULL; // Head of the global waiting list
 
 int main(int argc, char const *argv[]) 
 { 
+	sem_init(&continue_semaphore, 0, 0);
+	sem_init(&add_node_sm, 0, 1);
+
 	int server_fd, new_socket; 
 	struct sockaddr_in address; 
 
@@ -40,9 +58,6 @@ int main(int argc, char const *argv[])
         perror("setsockopt error");
         exit(EXIT_FAILURE);
     }
-	
-	// int value  = 1;
-	// setsockopt(server_fd,SOL_SOCKET,SO_REUSEADDR,&value,sizeof(value)); //&(int){1},sizeof(int)
 
 	address.sin_family = AF_INET; 
 	address.sin_addr.s_addr = INADDR_ANY; 
@@ -56,6 +71,13 @@ int main(int argc, char const *argv[])
 
 	//keep listeninig for incoming connections
 	printf("Server is listening\n");
+
+	// Start the scheduler thread
+    pthread_t scheduler_th;
+	pthread_attr_t sc_attr;
+	pthread_attr_init(&sc_attr);
+	pthread_attr_setdetachstate(&sc_attr, PTHREAD_CREATE_DETACHED);
+    pthread_create(&scheduler_th, &sc_attr, scheduler_thread, NULL);
 
 	while(1)
 	{
@@ -81,18 +103,24 @@ int main(int argc, char const *argv[])
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-		pthread_create(&th,&attr,ThreadRun,&new_socket);
+		// make struct and add arguments to send to ThreadRun method
+		thread_args args;
+		args.socket = new_socket;
+		args.thread = &th;
+
+		pthread_create(&th,&attr,ThreadRun,&args);
 	}
     close(server_fd);
     return 0;
 }
 
 //Thread handler function 
-void* ThreadRun(void * socket){
-	int *sock=(int*)socket;
-    int client_socket =*sock;
+void* ThreadRun(void * args){
+	thread_args* actual_args = (thread_args*)args;
+    int client_socket = actual_args->socket;
+	pthread_t* current_thread = actual_args->thread;
 
-	printf("Client is connected\n");
+	printf("[%d]<<< client connected\n", client_socket);
 	// infinite loop for the terminal
 	for (;;) {
         char input[MAX_INPUT];          // array to store input from the terminal
@@ -103,6 +131,7 @@ void* ThreadRun(void * socket){
             perror("Error recieving from client");
             break;
         }
+		printf("[%d]>>> %s\n", client_socket, input);
 	
         char* commands[MAX_COMMANDS];   // array to store the commands after parsing input
         
@@ -119,12 +148,72 @@ void* ThreadRun(void * socket){
         if (strcmp(commands[0], "exit") == 0) {
             // close the socket
             close(client_socket);
-            printf("Disconnecting Client\n...");
+            printf("[%d]--- client disconnected\n", client_socket);
             break;
         }
+
+		int rem_time = DEFAULT_WAIT_TIME;
+		// check if the given command is a program
+		if (strncmp(commands[0], "./", 2) == 0) {
+			// check if the user has given a time limit
+			char* command_copy = strdup(commands[0]);
+			strtok(command_copy, " ");
+			char* time = strtok(NULL, " ");
+			
+			int time_temp = atoi(time);
+			if (time != NULL && time_temp != 0) {
+				// get the remaining time from the command
+				rem_time = time_temp;
+			}
+		} else {
+			rem_time = -1;
+		}
+
+		// before execution add to the scheduler
+		// critical section
+		sem_wait(&add_node_sm);
+		
+		ThreadNode* curr_node = addNode(*current_thread, client_socket, rem_time, 1, -1);
+		printf("(%d)--- ", client_socket);
+		printf(BLUE_TEXT "created " RESET_TEXT);
+		printf("(%d)\n", rem_time);
+
+		sem_post(&add_node_sm);
+
         // execute the commands
-        execute(commands, commands_count, client_socket);
+        execute(commands, commands_count, client_socket, curr_node);
 	}
 	close(client_socket);
     pthread_exit(NULL);
+}
+
+void* scheduler_thread (void*) {
+	while (1) {
+		// choose the head to start from
+		ThreadNode* current = waiting_list;
+
+		if (current != NULL) {
+			// if the semaphore is 0, it means that the thread is waiting for its turn
+			// so we need to signal it
+			sem_post(&(current->semaphore));			
+		
+			// wait for this semaphore to be available, to continue with the control flow
+			// this becomes available when a program finishes execution
+			sem_wait(&(continue_semaphore));
+
+			// printf("Semaphore continue... %d\n", current->done);
+
+			// if the done flag is set, delete the node and continue
+			// printf("Current done: %d\n", current->done);
+			// while (current != NULL && current->done == 1) {
+			// 	printf("(%d)--- ", current->client);
+			// 	printf(RED_TEXT "ended " RESET_TEXT);
+			// 	printf("(%d)\n", current->remaining_time);
+			// 	ThreadNode* temp = current;
+			// 	current = current->next;
+			// 	deleteNode(temp);
+			// 	// continue;
+			// }
+		}
+	}
 }
