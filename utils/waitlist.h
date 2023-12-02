@@ -25,6 +25,7 @@ extern ThreadNode* waiting_list;
 // Function declarations
 ThreadNode* addNode(pthread_t thread, int client, int remaining_time, int algo, int quantum);
 void deleteNode(ThreadNode* node);
+void printList();
 void* scheduler(void* arg);
 
 #endif // THREAD_MANAGER_H

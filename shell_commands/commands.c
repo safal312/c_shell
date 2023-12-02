@@ -14,6 +14,8 @@
 #include "../globals.h"
 #include "../utils/waitlist.h"
 
+// note: check for ./demo | wc
+
 void execute_command(char* command, int input_fd, int output_fd) {
     //redirect input if input_fd is not standard input
     if (input_fd != STDIN_FILENO) {
@@ -204,10 +206,6 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
             //parent process
             int status;
 
-            // print address of stderr pipe
-            // printf("stderr pipe: %p\n", stderr_pipe);
-
-
             if (remtime != -1) {
                 // if not a shell command
                 kill(pid, SIGSTOP);
@@ -233,26 +231,25 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
                         kill(pid, SIGCONT);
                         if (curr_node->algo == 1) {
                             waitpid(pid, &status, 0);
+                            curr_node->remaining_time = 0;
                             break;
                         } else if (curr_node->algo == 2) {
                             // sem_post(&continue_semaphore);
                             sleep(curr_node->quantum);
                             curr_node->remaining_time -= curr_node->quantum;
+                            if (curr_node->remaining_time < 0) curr_node->remaining_time = 0;
+
+
+
                             // check if child process finished executing this time
                             kill(pid, SIGSTOP);
                             printf("(%d)--- ", c_socket);
                             printf(YELLOW_TEXT "waiting " RESET_TEXT);
                             printf("(%d)\n", curr_node->remaining_time);
-                            // sem_post(&continue_semaphore);
+                            sem_post(&continue_semaphore);
                         }
-                    } else if (result == -1) {
-                        // error
-                        perror("Error waiting for child");
-                        sem_post(&continue_semaphore);
-                        exit(1);
                     } else {
                         // child has exited
-                        // curr_node->done = 1;
                         break;
                     }
                 }
@@ -269,14 +266,11 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
         }
     }
 
-
     // sd
     printf("(%d)--- ", curr_node->client);
     printf(RED_TEXT "ended " RESET_TEXT);
     printf("(%d)\n", curr_node->remaining_time);
     deleteNode(curr_node);
-    sem_post(&continue_semaphore);
-    // if (curr_node) curr_node->done = 1;
 
     // close writing end of stderr and stdout pipes
     close(stdout_pipe[1]);
@@ -287,10 +281,15 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
     bzero(buffer, sizeof(buffer));
     // read data from stdout pipe and store it in the buffer
     ssize_t stdout_bytes = read(stdout_pipe[0], buffer, sizeof(buffer));
-    // printf("hereee\n");
     // Read stderr and add it to the buffer
+
+    // Set the read end of the pipe to non-blocking mode
+    if (fcntl(stderr_pipe[0], F_SETFL, O_NONBLOCK) == -1) {
+        perror("fcntl");
+        exit(EXIT_FAILURE);
+    }
+
     read(stderr_pipe[0], buffer + stdout_bytes, sizeof(buffer) - stdout_bytes);
-    // printf("thereee\n");
 
     // if buffer is empty add a null character before sending
     if (strlen(buffer) == 0) buffer[0] = '\0';
@@ -300,5 +299,6 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
 
     printf("[%d]<<< %d bytes sent\n", c_socket, (int)strlen(buffer));
     bzero(buffer, sizeof(buffer));
-    
+
+    sem_post(&continue_semaphore);
 }

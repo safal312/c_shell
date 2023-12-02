@@ -56,6 +56,19 @@ void deleteNode(ThreadNode* node) {
     free(node);
 }
 
+// function to print the waiting list
+void printList() {
+    ThreadNode* current = waiting_list;
+    if (current == NULL) {
+        printf("Waiting list is empty\n");
+        return;
+    }
+    while (current != NULL) {
+        printf("Thread %lu, remaining time: %d\n", current->thread, current->remaining_time);
+        current = current->next;
+    }
+}
+
 // Function to execute the threads in the waiting list
 void* scheduler(void* arg) {
     while (1) {

@@ -173,7 +173,7 @@ void* ThreadRun(void * args){
 		// critical section
 		sem_wait(&add_node_sm);
 		
-		ThreadNode* curr_node = addNode(*current_thread, client_socket, rem_time, 1, -1);
+		ThreadNode* curr_node = addNode(*current_thread, client_socket, rem_time, 2, 3);
 		printf("(%d)--- ", client_socket);
 		printf(BLUE_TEXT "created " RESET_TEXT);
 		printf("(%d)\n", rem_time);
@@ -200,7 +200,7 @@ void* scheduler_thread (void*) {
 			// wait for this semaphore to be available, to continue with the control flow
 			// this becomes available when a program finishes execution
 			sem_wait(&(continue_semaphore));
-
+			// printList();
 			// printf("Semaphore continue... %d\n", current->done);
 
 			// if the done flag is set, delete the node and continue
