@@ -9,12 +9,14 @@
 // Define a structure for a thread node
 typedef struct ThreadNode {
     int done;               // Flag to indicate if the execution is complete
+    int round;              // Round number for the scheduling
     pthread_t thread;       // Pointer to the thread
     int algo;               // Scheduling algorithm type: 1 for FCFS, 2 for RR
     int quantum;            // Quantum for RR scheduling algorithm
     int client;             // Client socket number
     int remaining_time;     // Remaining time for execution in seconds
     sem_t semaphore;        // Semaphore for indicating turn on the scheduler
+    sem_t preempt_sm;        // Semaphore for indicating preempt
     struct ThreadNode* next; // Pointer to the next node in the linked list
     struct ThreadNode* prev; // Pointer to the previous node in the linked list
 } ThreadNode;
@@ -26,6 +28,6 @@ extern ThreadNode* waiting_list;
 ThreadNode* addNode(pthread_t thread, int client, int remaining_time, int algo, int quantum);
 void deleteNode(ThreadNode* node);
 void printList();
-void* scheduler(void* arg);
+ThreadNode* scheduler(void* arg);
 
 #endif // THREAD_MANAGER_H

@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <sys/time.h>
 
 #include "commands.h"
 #include "../utils/parser.h"
@@ -205,6 +206,8 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
             if (i != 0) close(pipes[i-1][0]);
             //parent process
             int status;
+            struct timeval start_time, end_time;
+            // clock_t start_time, end_time;
 
             if (remtime != -1) {
                 // if not a shell command
@@ -224,33 +227,56 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
                         printf(GREEN_TEXT "running " RESET_TEXT);
                         printf("(%d)\n", curr_node->remaining_time);
                     }
-                    pid_t result = waitpid(pid, &status, WNOHANG);
+                    
+                    // continue child
+                    kill(pid, SIGCONT);
+                    gettimeofday(&start_time, NULL);  // Record the start time
+                    
+                    if (curr_node->algo == 1) {
+                        waitpid(pid, &status, 0);
+                        curr_node->remaining_time = 0;
+                        break;
+                    } else if (curr_node->algo == 2) {
+                        pid_t result = waitpid(pid, &status, WNOHANG);
 
-                    if (result == 0) {
-                        // child is still running
-                        kill(pid, SIGCONT);
-                        if (curr_node->algo == 1) {
-                            waitpid(pid, &status, 0);
-                            curr_node->remaining_time = 0;
-                            break;
-                        } else if (curr_node->algo == 2) {
-                            // sem_post(&continue_semaphore);
-                            sleep(curr_node->quantum);
-                            curr_node->remaining_time -= curr_node->quantum;
-                            if (curr_node->remaining_time < 0) curr_node->remaining_time = 0;
+                        if (result == 0) {
+                            // child is still running
+                            sem_wait(&curr_node->preempt_sm);
 
-
-
-                            // check if child process finished executing this time
                             kill(pid, SIGSTOP);
+
+                            gettimeofday(&end_time, NULL);  // Record the start time
+                            // time taken in int
+                            double time_taken = (end_time.tv_sec - start_time.tv_sec) +
+                              (end_time.tv_usec - start_time.tv_usec) / 1e6;
+
+                            // print time taken
+                            printf("Time taken: %f\n", time_taken);
+                            curr_node->remaining_time -= (int)time_taken;
+                            if (curr_node->remaining_time < 0) {
+                                curr_node->remaining_time = 0;
+                            }
+
+                            // check again if done
+                            pid_t result_second = waitpid(pid, &status, WNOHANG);
+                            if (result_second > 0) {
+                                // child has exited
+                                // sem_post(&continue_semaphore);
+                                curr_node->done = 1;
+                                break;
+                            
+                            }
+
                             printf("(%d)--- ", c_socket);
                             printf(YELLOW_TEXT "waiting " RESET_TEXT);
                             printf("(%d)\n", curr_node->remaining_time);
                             sem_post(&continue_semaphore);
+                        } else {
+                            // child has exited
+                            // sem_post(&continue_semaphore);
+                            curr_node->done = 1;
+                            break;
                         }
-                    } else {
-                        // child has exited
-                        break;
                     }
                 }
                 // sem_post(&continue_semaphore);
@@ -270,7 +296,7 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
     printf("(%d)--- ", curr_node->client);
     printf(RED_TEXT "ended " RESET_TEXT);
     printf("(%d)\n", curr_node->remaining_time);
-    deleteNode(curr_node);
+    // deleteNode(curr_node);
 
     // close writing end of stderr and stdout pipes
     close(stdout_pipe[1]);

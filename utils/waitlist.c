@@ -13,12 +13,14 @@
 ThreadNode* addNode(pthread_t thread, int client, int remaining_time, int algo, int quantum) {
     ThreadNode* new_node = (ThreadNode*)malloc(sizeof(ThreadNode));
     new_node->done = 0;
+    new_node->round = 1;
     new_node->thread = thread;
     new_node->client = client;
     new_node->algo = algo;
     new_node->quantum = quantum;
     new_node->remaining_time = remaining_time;
     sem_init(&(new_node->semaphore), 0, 0);
+    sem_init(&(new_node->preempt_sm), 0, 0);
     new_node->next = NULL;
     new_node->prev = NULL;
 
@@ -70,42 +72,43 @@ void printList() {
 }
 
 // Function to execute the threads in the waiting list
-void* scheduler(void* arg) {
-    while (1) {
-        ThreadNode* current = waiting_list;
+ThreadNode* scheduler(void* arg) {
+    return waiting_list;
+    // while (1) {
+    //     ThreadNode* current = waiting_list;
 
-        while (current != NULL) {
-            // Wait for the semaphore to be signaled (indicating turn on the scheduler)
-            sem_wait(&(current->semaphore));
+    //     while (current != NULL) {
+    //         // Wait for the semaphore to be signaled (indicating turn on the scheduler)
+    //         sem_wait(&(current->semaphore));
 
-            // Execute the thread for 1 second
-            // (Note: For simplicity, we use sleep here, but in a real-world scenario,
-            // you may want to use a more precise timer mechanism.)
-            sleep(1);
-            current->remaining_time--;
+    //         // Execute the thread for 1 second
+    //         // (Note: For simplicity, we use sleep here, but in a real-world scenario,
+    //         // you may want to use a more precise timer mechanism.)
+    //         sleep(1);
+    //         current->remaining_time--;
 
-            // If the thread has finished execution, remove it from the waiting list
-            if (current->remaining_time <= 0) {
-                printf("Thread %lu finished execution\n", current->thread);
-                ThreadNode* temp = current;
-                current = current->next;
+    //         // If the thread has finished execution, remove it from the waiting list
+    //         if (current->remaining_time <= 0) {
+    //             printf("Thread %lu finished execution\n", current->thread);
+    //             ThreadNode* temp = current;
+    //             current = current->next;
 
-                if (temp->prev != NULL) {
-                    temp->prev->next = temp->next;
-                } else {
-                    waiting_list = temp->next;
-                }
+    //             if (temp->prev != NULL) {
+    //                 temp->prev->next = temp->next;
+    //             } else {
+    //                 waiting_list = temp->next;
+    //             }
 
-                if (temp->next != NULL) {
-                    temp->next->prev = temp->prev;
-                }
+    //             if (temp->next != NULL) {
+    //                 temp->next->prev = temp->prev;
+    //             }
 
-                free(temp);
-            } else {
-                // Move to the next node in the linked list
-                current = current->next;
-            }
-        }
-    }
-    return NULL;
+    //             free(temp);
+    //         } else {
+    //             // Move to the next node in the linked list
+    //             current = current->next;
+    //         }
+    //     }
+    // }
+    // return NULL;
 }

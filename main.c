@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <signal.h>
 
 #define MAX 80
 #define PORT 5600
@@ -173,11 +174,12 @@ void* ThreadRun(void * args){
 		// critical section
 		sem_wait(&add_node_sm);
 		
-		ThreadNode* curr_node = addNode(*current_thread, client_socket, rem_time, 2, 3);
+		ThreadNode* curr_node = addNode(*current_thread, client_socket, rem_time, 2, 8);
 		printf("(%d)--- ", client_socket);
 		printf(BLUE_TEXT "created " RESET_TEXT);
 		printf("(%d)\n", rem_time);
-
+		
+		sem_post(&(continue_semaphore));
 		sem_post(&add_node_sm);
 
         // execute the commands
@@ -187,33 +189,63 @@ void* ThreadRun(void * args){
     pthread_exit(NULL);
 }
 
+sem_t* curr_preempt_sm;
+
+volatile sig_atomic_t timer_running = 0;
+
+void start_timer(int seconds) {
+    alarm(seconds);
+    timer_running = 1;
+}
+
+void stop_timer() {
+    alarm(0);
+    timer_running = 0;
+}
+
+void signal_handler(int signum) {
+	sem_post(curr_preempt_sm);
+	stop_timer();
+}
+
+
 void* scheduler_thread (void*) {
+    // Set up signal handlers
+    signal(SIGALRM, signal_handler);
+	ThreadNode* current = NULL;
+
 	while (1) {
+		// wait for this semaphore to be available, to continue with the control flow
+		// this becomes available when a program finishes execution
+		sem_wait(&(continue_semaphore));
+		if (current && current->done == 1) {
+			stop_timer();
+			deleteNode(current);
+		}
+		// if timer running, stop it and post preempt semaphore
+		if (timer_running) {
+			curr_preempt_sm = &(current->preempt_sm);
+			raise (SIGALRM);
+			sem_wait(&(continue_semaphore));
+		}
+		
 		// choose the head to start from
-		ThreadNode* current = waiting_list;
+		current = scheduler(NULL);
+
+		printList();
 
 		if (current != NULL) {
+			curr_preempt_sm = &(current->preempt_sm);
+			if (current->remaining_time < current->quantum) {
+				// additional time for operations handling
+				if (current->remaining_time > 0) start_timer(current->remaining_time + 1);
+				else start_timer(2);
+			} else {
+				start_timer(current->quantum);
+			}
 			// if the semaphore is 0, it means that the thread is waiting for its turn
 			// so we need to signal it
-			sem_post(&(current->semaphore));			
-		
-			// wait for this semaphore to be available, to continue with the control flow
-			// this becomes available when a program finishes execution
-			sem_wait(&(continue_semaphore));
-			// printList();
-			// printf("Semaphore continue... %d\n", current->done);
-
-			// if the done flag is set, delete the node and continue
-			// printf("Current done: %d\n", current->done);
-			// while (current != NULL && current->done == 1) {
-			// 	printf("(%d)--- ", current->client);
-			// 	printf(RED_TEXT "ended " RESET_TEXT);
-			// 	printf("(%d)\n", current->remaining_time);
-			// 	ThreadNode* temp = current;
-			// 	current = current->next;
-			// 	deleteNode(temp);
-			// 	// continue;
-			// }
+			sem_post(&(current->semaphore));
 		}
 	}
 }
