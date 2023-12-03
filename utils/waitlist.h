@@ -15,7 +15,7 @@ typedef struct ThreadNode {
     int quantum;            // Quantum for RR scheduling algorithm
     int client;             // Client socket number
     int remaining_time;     // Remaining time for execution in seconds
-    sem_t semaphore;        // Semaphore for indicating turn on the scheduler
+    sem_t semaphore;        // Semaphore for indicating turn on the scheduler (its turn to process)
     sem_t preempt_sm;        // Semaphore for indicating preempt
     struct ThreadNode* next; // Pointer to the next node in the linked list
     struct ThreadNode* prev; // Pointer to the previous node in the linked list

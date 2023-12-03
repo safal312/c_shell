@@ -17,6 +17,7 @@
 #define PORT 5600
 #define SA struct sockaddr
 
+// estimated time for programs we don't know the burst time for
 #define DEFAULT_WAIT_TIME 100
 
 //compile using -lpthread
@@ -204,12 +205,13 @@ void stop_timer() {
 }
 
 void signal_handler(int signum) {
+	// posts the semaphore to stop the process preemptively
 	sem_post(curr_preempt_sm);
 	stop_timer();
 }
 
 
-void* scheduler_thread (void*) {
+void* scheduler_thread (void* args) {
     // Set up signal handlers
     signal(SIGALRM, signal_handler);
 	ThreadNode* current = NULL;
@@ -241,6 +243,7 @@ void* scheduler_thread (void*) {
 				if (current->remaining_time > 0) start_timer(current->remaining_time + 1);
 				else start_timer(2);
 			} else {
+				// start the timer right before letting a node start processing
 				start_timer(current->quantum);
 			}
 			// if the semaphore is 0, it means that the thread is waiting for its turn

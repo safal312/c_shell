@@ -19,6 +19,8 @@ ThreadNode* addNode(pthread_t thread, int client, int remaining_time, int algo, 
     new_node->algo = algo;
     new_node->quantum = quantum;
     new_node->remaining_time = remaining_time;
+    // every node has a semaphore which starts at 0, by default all the nodes are paused
+    // the scheduler will post this semaphore indicating its turn to process
     sem_init(&(new_node->semaphore), 0, 0);
     sem_init(&(new_node->preempt_sm), 0, 0);
     new_node->next = NULL;

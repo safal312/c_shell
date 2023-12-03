@@ -215,7 +215,7 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
 
                 // when a condition is met: time interval
                 while (1) {
-                    // printf("(%d)sdsadasd\n", curr_node->remaining_time);
+                    // all threads will wait at this semaphore for the scheduler to post it
                     sem_wait(&curr_node->semaphore);
                     // check if semaphore posted for the first time
                     if (curr_node->remaining_time == remtime) {
@@ -237,12 +237,14 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
                         curr_node->remaining_time = 0;
                         break;
                     } else if (curr_node->algo == 2) {
+                        // check status of child process without blocking
                         pid_t result = waitpid(pid, &status, WNOHANG);
 
                         if (result == 0) {
                             // child is still running
+                            // wait until notified to stop the child process
                             sem_wait(&curr_node->preempt_sm);
-
+                            // once preempted, stop the child from running
                             kill(pid, SIGSTOP);
 
                             gettimeofday(&end_time, NULL);  // Record the start time
@@ -270,6 +272,8 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
                             printf("(%d)--- ", c_socket);
                             printf(YELLOW_TEXT "waiting " RESET_TEXT);
                             printf("(%d)\n", curr_node->remaining_time);
+
+                            // mechanism to release the scheduler
                             sem_post(&continue_semaphore);
                         } else {
                             // child has exited
@@ -296,7 +300,8 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
     printf("(%d)--- ", curr_node->client);
     printf(RED_TEXT "ended " RESET_TEXT);
     printf("(%d)\n", curr_node->remaining_time);
-    // deleteNode(curr_node);
+    // if shell command, just delete it
+    if (remtime == -1) deleteNode(curr_node);
 
     // close writing end of stderr and stdout pipes
     close(stdout_pipe[1]);
@@ -325,6 +330,6 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
 
     printf("[%d]<<< %d bytes sent\n", c_socket, (int)strlen(buffer));
     bzero(buffer, sizeof(buffer));
-
-    sem_post(&continue_semaphore);
+    
+    if (remtime != -1) sem_post(&continue_semaphore);
 }
