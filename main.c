@@ -36,7 +36,8 @@ typedef struct {
 } thread_args;
 
 sem_t continue_semaphore, add_node_sm;
-ThreadNode* waiting_list = NULL; // Head of the global waiting list
+NodeList* waiting_list= {NULL}; // Head of the global waiting list
+// waiting_list->head = NULL;
 
 int main(int argc, char const *argv[]) 
 { 
@@ -175,7 +176,7 @@ void* ThreadRun(void * args){
 		// critical section
 		sem_wait(&add_node_sm);
 		
-		ThreadNode* curr_node = addNode(*current_thread, client_socket, rem_time, 2, 8);
+		ThreadNode* curr_node = addNode(waiting_list, *current_thread, client_socket, rem_time, 2, 8);
 		printf("(%d)--- ", client_socket);
 		printf(BLUE_TEXT "created " RESET_TEXT);
 		printf("(%d)\n", rem_time);
@@ -188,67 +189,4 @@ void* ThreadRun(void * args){
 	}
 	close(client_socket);
     pthread_exit(NULL);
-}
-
-sem_t* curr_preempt_sm;
-
-volatile sig_atomic_t timer_running = 0;
-
-void start_timer(int seconds) {
-    alarm(seconds);
-    timer_running = 1;
-}
-
-void stop_timer() {
-    alarm(0);
-    timer_running = 0;
-}
-
-void signal_handler(int signum) {
-	// posts the semaphore to stop the process preemptively
-	sem_post(curr_preempt_sm);
-	stop_timer();
-}
-
-
-void* scheduler_thread (void* args) {
-    // Set up signal handlers
-    signal(SIGALRM, signal_handler);
-	ThreadNode* current = NULL;
-
-	while (1) {
-		// wait for this semaphore to be available, to continue with the control flow
-		// this becomes available when a program finishes execution
-		sem_wait(&(continue_semaphore));
-		if (current && current->done == 1) {
-			stop_timer();
-			deleteNode(current);
-		}
-		// if timer running, stop it and post preempt semaphore
-		if (timer_running) {
-			curr_preempt_sm = &(current->preempt_sm);
-			raise (SIGALRM);
-			sem_wait(&(continue_semaphore));
-		}
-		
-		// choose the head to start from
-		current = scheduler(NULL);
-
-		printList();
-
-		if (current != NULL) {
-			curr_preempt_sm = &(current->preempt_sm);
-			if (current->remaining_time < current->quantum) {
-				// additional time for operations handling
-				if (current->remaining_time > 0) start_timer(current->remaining_time + 1);
-				else start_timer(2);
-			} else {
-				// start the timer right before letting a node start processing
-				start_timer(current->quantum);
-			}
-			// if the semaphore is 0, it means that the thread is waiting for its turn
-			// so we need to signal it
-			sem_post(&(current->semaphore));
-		}
-	}
 }
