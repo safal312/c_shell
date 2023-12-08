@@ -21,13 +21,22 @@ typedef struct ThreadNode {
     struct ThreadNode* prev; // Pointer to the previous node in the linked list
 } ThreadNode;
 
+typedef struct NodeList{
+    struct ThreadNode* head;
+    struct ThreadNode* tail;
+}NodeList;
+
 // Declare the global waiting list as extern
-extern ThreadNode* waiting_list;
+extern NodeList waiting_list;
 
 // Function declarations
-ThreadNode* addNode(pthread_t thread, int client, int remaining_time, int algo, int quantum);
-void deleteNode(ThreadNode* node);
+ThreadNode* addNode(NodeList* list, pthread_t thread, int client, int remaining_time, int algo, int quantum);
+void deleteNode(NodeList* list,ThreadNode* node);
 void printList();
-ThreadNode* scheduler(void* arg);
+void start_timer(int seconds);
+void stop_timer();
+void signal_handler(int signum);
+void* scheduler_thread (void* args);
+ThreadNode* scheduler(ThreadNode* node);
 
 #endif // THREAD_MANAGER_H

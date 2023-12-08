@@ -301,7 +301,7 @@ void execute(char** commands, int commands_count, int c_socket, ThreadNode* curr
     printf(RED_TEXT "ended " RESET_TEXT);
     printf("(%d)\n", curr_node->remaining_time);
     // if shell command, just delete it
-    if (remtime == -1) deleteNode(curr_node);
+    if (remtime == -1) deleteNode(&waiting_list, curr_node);
 
     // close writing end of stderr and stdout pipes
     close(stdout_pipe[1]);
