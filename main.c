@@ -36,8 +36,7 @@ typedef struct {
 } thread_args;
 
 sem_t continue_semaphore, add_node_sm;
-NodeList* waiting_list= {NULL}; // Head of the global waiting list
-// waiting_list->head = NULL;
+NodeList waiting_list = {.head = NULL}; // Head of the global waiting list
 
 int main(int argc, char const *argv[]) 
 { 
@@ -176,7 +175,7 @@ void* ThreadRun(void * args){
 		// critical section
 		sem_wait(&add_node_sm);
 		
-		ThreadNode* curr_node = addNode(waiting_list, *current_thread, client_socket, rem_time, 2, 8);
+		ThreadNode* curr_node = addNode(&waiting_list, *current_thread, client_socket, rem_time, 2, 8);
 		printf("(%d)--- ", client_socket);
 		printf(BLUE_TEXT "created " RESET_TEXT);
 		printf("(%d)\n", rem_time);

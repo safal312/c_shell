@@ -35,13 +35,11 @@ ThreadNode* addNode(NodeList* list, pthread_t thread, int client, int remaining_
     // Add the new node to the end of the linked list
     if (list->head == NULL) {
         list->head = new_node;
+        list->tail = new_node;
     } else {
-        ThreadNode* current = list->head;
-        while (current->next != NULL) {
-            current = current->next;
-        }
-        current->next = new_node;
-        new_node->prev = current;
+        new_node->prev = list->tail;
+        list->tail->next = new_node;
+        list->tail = new_node;
     }
     return new_node;
 }
@@ -53,8 +51,13 @@ void deleteNode(NodeList* list, ThreadNode* node) {
     }
 
     // If the node to be deleted is the head node
-    if (list->head == node) {
+    if (node->prev == NULL){
         list->head = node->next;
+    }
+
+    // If the node to be deleted is the tail node
+    if (node->next == NULL){
+        list->tail = node->prev;
     }
 
     // Adjusting pointers of the previous and next nodes
@@ -70,7 +73,7 @@ void deleteNode(NodeList* list, ThreadNode* node) {
 
 // function to print the waiting list
 void printList() {
-    ThreadNode* current = waiting_list->head;
+    ThreadNode* current = waiting_list.head;
     if (current == NULL) {
         printf("Waiting list is empty\n");
         return;
@@ -105,7 +108,7 @@ void signal_handler(int signum) {
 void* scheduler_thread (void* args) {
     // Set up signal handlers
     signal(SIGALRM, signal_handler);
-	ThreadNode* current = waiting_list->head;
+	ThreadNode* current = waiting_list.head;
 
 	while (1) {
 		// wait for this semaphore to be available, to continue with the control flow
@@ -113,7 +116,7 @@ void* scheduler_thread (void* args) {
 		sem_wait(&(continue_semaphore));
 		if (current && current->done == 1) {
 			stop_timer();
-			deleteNode(waiting_list, current);
+			deleteNode(&waiting_list, current);
 		}	
 		// if timer running, stop it and post preempt semaphore
 		if (timer_running) {
@@ -146,7 +149,7 @@ void* scheduler_thread (void* args) {
 
 // Function to execute the threads in the waiting list
 ThreadNode* scheduler(ThreadNode* node) {
-    return waiting_list->head;
+    return waiting_list.head;
     // while (1) {
     //     ThreadNode* current = waiting_list;
 

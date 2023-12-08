@@ -23,11 +23,11 @@ typedef struct ThreadNode {
 
 typedef struct NodeList{
     struct ThreadNode* head;
-    // struct ThreadNode* tail;
+    struct ThreadNode* tail;
 }NodeList;
 
 // Declare the global waiting list as extern
-extern NodeList* waiting_list;
+extern NodeList waiting_list;
 
 // Function declarations
 ThreadNode* addNode(NodeList* list, pthread_t thread, int client, int remaining_time, int algo, int quantum);
