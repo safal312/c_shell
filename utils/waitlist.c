@@ -4,6 +4,7 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <signal.h>
+#include <limits.h>
 
 #include "waitlist.h"
 #include "../globals.h"
@@ -108,7 +109,7 @@ void signal_handler(int signum) {
 void* scheduler_thread (void* args) {
     // Set up signal handlers
     signal(SIGALRM, signal_handler);
-	ThreadNode* current = waiting_list.head;
+	ThreadNode* current = NULL;
 
 	while (1) {
 		// wait for this semaphore to be available, to continue with the control flow
@@ -117,24 +118,29 @@ void* scheduler_thread (void* args) {
 		if (current && current->done == 1) {
 			stop_timer();
 			deleteNode(&waiting_list, current);
-		}	
+		}
+
 		// if timer running, stop it and post preempt semaphore
 		if (timer_running) {
-			curr_preempt_sm = &(current->preempt_sm);
-			raise (SIGALRM);
-			sem_wait(&(continue_semaphore));
+            if (current->remaining_time > waiting_list.tail->remaining_time) {
+                curr_preempt_sm = &(current->preempt_sm);
+                raise (SIGALRM);
+                sem_wait(&(continue_semaphore));
+            } else {
+                continue;
+            }
 		}
 		
 		// choose the head to start from
 		current = scheduler(current);
 
-		printList();
+		// printList();
 
 		if (current != NULL) {
 			curr_preempt_sm = &(current->preempt_sm);
 			if (current->remaining_time < current->quantum) {
 				// additional time for operations handling
-				if (current->remaining_time > 0) start_timer(current->remaining_time + 1);
+				if (current->remaining_time > 0) start_timer(current->remaining_time);
 				else start_timer(2);
 			} else {
 				// start the timer right before letting a node start processing
@@ -149,98 +155,35 @@ void* scheduler_thread (void* args) {
 
 // Function to execute the threads in the waiting list
 ThreadNode* scheduler(ThreadNode* node) {
-    return waiting_list.head;
-    // while (1) {
-    //     ThreadNode* current = waiting_list;
+    if (node && node->done == 1) {
+        stop_timer();
+        deleteNode(&waiting_list, node);
+    }
 
-    //     while (current != NULL) {
-    //         // Wait for the semaphore to be signaled (indicating turn on the scheduler)
-    //         sem_wait(&(current->semaphore));
+    // if list is empty, return NULL
+    if (waiting_list.head == NULL) return NULL;
+    // if only node in list, return node
+    if (waiting_list.head->next == NULL) return waiting_list.head;
 
-    //         // Execute the thread for 1 second
-    //         // (Note: For simplicity, we use sleep here, but in a real-world scenario,
-    //         // you may want to use a more precise timer mechanism.)
-    //         sleep(1);
-    //         current->remaining_time--;
+    // we return the node with STRF
+    int min_time = INT_MAX;
+    ThreadNode* min_node = NULL;
+    
+    ThreadNode* current = waiting_list.head;
+    while (current != NULL) {
+        if (current->remaining_time < min_time) {
+            // skip the same node
+            if (node->client == current->client) {
+                current = current->next;
+                continue;
+            }
 
-    //         // If the thread has finished execution, remove it from the waiting list
-    //         if (current->remaining_time <= 0) {
-    //             printf("Thread %lu finished execution\n", current->thread);
-    //             ThreadNode* temp = current;
-    //             current = current->next;
+            min_time = current->remaining_time;
+            min_node = current;
+        }
+        current = current->next;
+    }
 
-    //             if (temp->prev != NULL) {
-    //                 temp->prev->next = temp->next;
-    //             } else {
-    //                 waiting_list = temp->next;
-    //             }
-
-    //             if (temp->next != NULL) {
-    //                 temp->next->prev = temp->prev;
-    //             }
-
-    //             free(temp);
-    //         } else {
-    //             // Move to the next node in the linked list
-    //             current = current->next;
-    //         }
-    //     }
-    // }
-    // return NULL;
+    return min_node;
+       
 }
-
-
-
-
-
-
-// Function for Round Robin Scheduler
-// ThreadNode* scheduler(ThreadNode* arg) {
-//     int current_round_quantum = FIRST_ROUND_QUANTUM; // Quantum for the current round
-
-//     while (1) {
-//         ThreadNode* current = waiting_list;
-
-//         // Loop through the waiting list
-//         while (current != NULL) {
-//             if (current && current->done == 1) {
-//                 // If a thread is marked as done, remove it from the list
-//                 ThreadNode* to_remove = current;
-//                 current = current->next;
-//                 deleteNode(to_remove);
-//                 continue;
-//             }
-
-//             // Check if the current thread is ready to run
-//             if (current->remaining_time > 0) {
-//                 // If the thread's remaining time is greater than the current round's quantum, run for quantum time
-//                 int run_time = (current->remaining_time > current_round_quantum) ? current_round_quantum : current->remaining_time;
-
-//                 // Update the remaining time for the thread
-//                 current->remaining_time -= run_time;
-
-//                 // Indicate the turn to process for this thread
-//                 sem_post(&(current->semaphore));
-
-//                 // Wait for the thread to finish its quantum or its completion
-//                 sem_wait(&(current->preempt_sm));
-
-//                 // If the thread is completed, remove it from the list
-//                 if (current->done) {
-//                     ThreadNode* to_remove = current;
-//                     current = current->next;
-//                     deleteNode(to_remove);
-//                     continue;
-//                 }
-//             }
-
-//             // Move to the next thread
-//             current = current->next;
-//         }
-
-//         // Update the quantum for the next round
-//         current_round_quantum = REMAINING_ROUND_QUANTUM;
-//     }
-
-//     return NULL;
-// }
