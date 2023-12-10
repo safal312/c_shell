@@ -8,7 +8,7 @@
 
 // Define a structure for a thread node
 typedef struct ThreadNode {
-    int sc;         
+    int sc;                 // To check whether the command is shellcommand or not
     int done;               // Flag to indicate if the execution is complete
     int round;              // Round number for the scheduling
     pthread_t thread;       // Pointer to the thread
@@ -22,8 +22,8 @@ typedef struct ThreadNode {
 } ThreadNode;
 
 typedef struct NodeList{
-    struct ThreadNode* head;
-    struct ThreadNode* tail;
+    struct ThreadNode* head;    //pointer to the head in the Linked List
+    struct ThreadNode* tail;    //pointer to the tail in the Linked List
 }NodeList;
 
 // Declare the global waiting list as extern

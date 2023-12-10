@@ -126,19 +126,30 @@ void* ThreadRun(void * args){
         char input[MAX_INPUT];          // array to store input from the terminal
 		bzero(input, sizeof(input));
 
+		ssize_t bytes_received = recv(client_socket, &input, sizeof(input), 0);
 		// read the message from client and copy it in buffer
-		if (recv(client_socket, &input, sizeof(input), 0) == -1) {
+		if (bytes_received == -1) {
             perror("Error recieving from client");
             break;
         }
-		printf("[%d]>>> %s\n", client_socket, input);
-	
+		if (bytes_received == 0) {
+			printf("[%d]--- client disconnected\n", client_socket);
+			break;
+		}
+		// print buffer which contains the client contents
+		input[bytes_received] = '\0';
+		printf("Before printing\n");
+		printf("Length of input: %ld\n",strlen(input));
+		// printf("[%d]>>> %s\n", client_socket, input);
+		printf("after printing");
+		printf("Before parsing");
         char* commands[MAX_COMMANDS];   // array to store the commands after parsing input
         
         // parse the input and store the commands in the commands array
         // this separates the commands by pipes
+		
         int commands_count = parse_input(input, commands);
-
+		printf("After parsing");
         // check if input is empty or made with only whitespace characters
         if (commands_count <= 0) {
             continue;
@@ -154,13 +165,14 @@ void* ThreadRun(void * args){
 
 		int rem_time = DEFAULT_WAIT_TIME;
 		int sc = 0;
+
 		// check if the given command is a program
 		if (strncmp(commands[0], "./", 2) == 0) {
 			// check if the user has given a time limit
 			char* command_copy = strdup(commands[0]);
 			strtok(command_copy, " ");
 			char* time = strtok(NULL, " ");
-			
+
 			int time_temp = atoi(time);
 			if (time != NULL && time_temp != 0) {
 				// get the remaining time from the command
