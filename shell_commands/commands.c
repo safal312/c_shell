@@ -1,3 +1,4 @@
+//Include necessary libraries
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -165,12 +166,11 @@ void execute_command(char *command, int input_fd, int output_fd)
     }
 }
 
+// Function to execute the commands
 void execute(char **commands, int commands_count, int c_socket, ThreadNode *curr_node)
 {
-    // sem_t semaphore = curr_node->semaphore;
+    // remaining time for the node
     int remtime = curr_node->remaining_time;
-    // sem_wait(&semaphore);
-    // printf("[%d]>>> %s:%d\n", c_socket, commands[0], curr_node->remaining_time);
     // array to store pipes
     int pipes[commands_count - 1][2];
     // pipe to store stdout and stderr to send to client
@@ -281,14 +281,6 @@ void execute(char **commands, int commands_count, int c_socket, ThreadNode *curr
                     kill(pid, SIGCONT);
                     gettimeofday(&start_time, NULL); // Record the start time
 
-                    // if (curr_node->algo == 1)
-                    // {
-                    //     waitpid(pid, &status, 0);
-                    //     curr_node->remaining_time = 0;
-                    //     break;
-                    // }
-                    // else if (curr_node->algo == 2)
-                    // {
                     // check status of child process without blocking
                     pid_t result = waitpid(pid, &status, WNOHANG);
 
@@ -309,15 +301,14 @@ void execute(char **commands, int commands_count, int c_socket, ThreadNode *curr
                         double time_taken = (end_time.tv_sec - start_time.tv_sec) +
                                             (end_time.tv_usec - start_time.tv_usec) / 1e6;
 
-                        // print time taken
-                        // printf("Time taken: %f\n", time_taken);
-
+                        // decrement the remaining time by the time taken
                         curr_node->remaining_time -= (int)time_taken;
                         if (curr_node->remaining_time < 0)
                         {
                             curr_node->remaining_time = 0;
                         }
 
+                        // if the remaining time is less than 1, wait for the child to finish
                         if (curr_node->remaining_time <= 1)
                         {
                             waitpid(pid, &status, 0);
@@ -351,9 +342,7 @@ void execute(char **commands, int commands_count, int c_socket, ThreadNode *curr
                         curr_node->done = 1;
                         break;
                     }
-                    // }
                 }
-                // sem_post(&continue_semaphore);
             }
             else
             {
@@ -363,13 +352,10 @@ void execute(char **commands, int commands_count, int c_socket, ThreadNode *curr
 
                 // if just a shell command, wait for child to finish and post continue_semaphore
                 waitpid(pid, &status, 0);
-                // curr_node->done = 1;
-                // sem_post(&continue_semaphore);
             }
         }
     }
 
-    // sd
     printf("(%d)--- ", curr_node->client);
     printf(RED_TEXT "ended " RESET_TEXT);
     printf("(%d)\n", curr_node->remaining_time);
@@ -395,6 +381,7 @@ void execute(char **commands, int commands_count, int c_socket, ThreadNode *curr
         exit(EXIT_FAILURE);
     }
 
+    // Read the data from the pipe
     read(stderr_pipe[0], buffer + stdout_bytes, sizeof(buffer) - stdout_bytes);
 
     // if buffer is empty add a null character before sending
@@ -407,6 +394,7 @@ void execute(char **commands, int commands_count, int c_socket, ThreadNode *curr
     printf("[%d]<<< %d bytes sent\n", c_socket, (int)strlen(buffer));
     bzero(buffer, sizeof(buffer));
 
+    // if the current node is shell command, give signal to the semaphore
     if (curr_node->sc == 0)
         sem_post(&continue_semaphore);
 }

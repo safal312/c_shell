@@ -1,3 +1,4 @@
+//Include necessary libraries
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -8,11 +9,6 @@
 
 #include "waitlist.h"
 #include "../globals.h"
-
-
-
-// // Global variables
-// ThreadNode* waiting_list = NULL; // Head of the global waiting list
 
 // Function to add a new thread to the waiting list
 ThreadNode* addNode(NodeList* list, pthread_t thread, int client, int remaining_time, int sc, int quantum) {
@@ -83,27 +79,32 @@ void printList() {
     }
 }
 
+// semaphore to indicate the current preempt semaphore to continue
 sem_t* curr_preempt_sm;
 
+// flag to indicate if the timer is running
 volatile sig_atomic_t timer_running = 0;
 
+// Function to start the timer
 void start_timer(int seconds) {
     alarm(seconds);
     timer_running = 1;
 }
 
+// Function to stop the timer
 void stop_timer() {
     alarm(0);
     timer_running = 0;
 }
 
+// Function to handle the signal
 void signal_handler(int signum) {
 	// posts the semaphore to stop the process preemptively
 	sem_post(curr_preempt_sm);
 	stop_timer();
 }
 
-
+// Function to execute the threads in the waiting list
 void* scheduler_thread (void* args) {
     // Set up signal handlers
     signal(SIGALRM, signal_handler);
@@ -132,7 +133,6 @@ void* scheduler_thread (void* args) {
 		// choose the head to start from
 		current = scheduler(current);
 
-		// printList();
 
 		if (current != NULL) {
 			curr_preempt_sm = &(current->preempt_sm);
@@ -181,7 +181,6 @@ ThreadNode* scheduler(ThreadNode* node) {
         }
         current = current->next;
     }
-
     return min_node;
        
 }

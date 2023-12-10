@@ -1,3 +1,4 @@
+// Include necessary libraries
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -13,8 +14,7 @@
 #include <semaphore.h>
 #include <signal.h>
 
-#define MAX 80
-#define PORT 5600
+#define PORT 5600			
 #define SA struct sockaddr
 
 // estimated time for programs we don't know the burst time for
@@ -28,19 +28,24 @@ void* ThreadRun(void *);
 #include "utils/waitlist.h"			// for waitlist
 #include "globals.h"
 
+// struct to pass arguments to the thread
 typedef struct {
 	int socket;
 	pthread_t* thread;
 } thread_args;
 
+// Global variables
 sem_t continue_semaphore, add_node_sm;
 NodeList waiting_list = {.head = NULL}; // Head of the global waiting list
 
+
 int main(int argc, char const *argv[]) 
 { 
+	// initialize the semaphore
 	sem_init(&continue_semaphore, 0, 0);
 	sem_init(&add_node_sm, 0, 1);
 
+	// socket variables
 	int server_fd, new_socket; 
 	struct sockaddr_in address; 
 
@@ -108,6 +113,7 @@ int main(int argc, char const *argv[])
 		args.socket = new_socket;
 		args.thread = &th;
 
+		// create a new thread for each client
 		pthread_create(&th,&attr,ThreadRun,&args);
 	}
     close(server_fd);
@@ -126,6 +132,7 @@ void* ThreadRun(void * args){
         char input[MAX_INPUT];          // array to store input from the terminal
 		bzero(input, sizeof(input));
 
+		// receive input from the client
 		ssize_t bytes_received = recv(client_socket, &input, sizeof(input), 0);
 		// read the message from client and copy it in buffer
 		if (bytes_received == -1) {
@@ -141,7 +148,6 @@ void* ThreadRun(void * args){
 		
 		printf("[%d]>>> %s\n", client_socket, input);
 		
-        // sleep(5);
         // parse the input and store the commands in the commands array
         // this separates the commands by pipes
 		// continue;
@@ -159,10 +165,10 @@ void* ThreadRun(void * args){
             printf("[%d]--- client disconnected\n", client_socket);
             break;
         }
-		// sleep(5);
 
-		int rem_time = DEFAULT_WAIT_TIME;
-		int sc = 0;
+
+		int rem_time = DEFAULT_WAIT_TIME;  //initailize rem_time as default if time is not specified
+		int sc = 0; 						//flag to indicate whether a shell command or not
 
 		// check if the given command is a program
 		if (strncmp(commands[0], "./", 2) == 0) {
@@ -171,13 +177,12 @@ void* ThreadRun(void * args){
 			strtok(command_copy, " ");
 			char* time = strtok(NULL, " ");
 
-			printf("after and %s\n", time);
 			if (time != NULL) {
 				int time_temp = atoi(time);
 				// get the remaining time from the command
 				rem_time = time_temp;
 			}
-		} else {
+		} else {					//if command is a shell command
 			sc = 1;
 			rem_time = -1;
 		}
@@ -186,11 +191,13 @@ void* ThreadRun(void * args){
 		// critical section
 		sem_wait(&add_node_sm);
 		
+		// add a node to the waiting list
 		ThreadNode* curr_node = addNode(&waiting_list, *current_thread, client_socket, rem_time, sc, 3);
 		printf("(%d)--- ", client_socket);
 		printf(BLUE_TEXT "created " RESET_TEXT);
 		printf("(%d)\n", rem_time);
 		
+		// if the node is shell command, then continue to execute it
 		if(curr_node->sc == 0) sem_post(&(continue_semaphore));
 		sem_post(&add_node_sm);
 
