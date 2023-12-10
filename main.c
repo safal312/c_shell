@@ -139,9 +139,10 @@ void* ThreadRun(void * args){
 		// print buffer which contains the client contents
 		input[bytes_received] = '\0';
 		printf("Before printing\n");
-		printf("Length of input: %ld\n",strlen(input));
-		// printf("[%d]>>> %s\n", client_socket, input);
 		printf("after printing");
+		// printf("Length of input: %ld\n",strlen(input));
+		// printf("[%d]>>> %s\n", client_socket, input);
+		
 		printf("Before parsing");
         char* commands[MAX_COMMANDS];   // array to store the commands after parsing input
         
