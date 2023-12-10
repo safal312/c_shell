@@ -138,19 +138,19 @@ void* ThreadRun(void * args){
 		}
 		// print buffer which contains the client contents
 		input[bytes_received] = '\0';
-		printf("Before printing\n");
-		printf("after printing");
+		// printf("Before printing\n");
+		// printf("after printing");
 		// printf("Length of input: %ld\n",strlen(input));
-		// printf("[%d]>>> %s\n", client_socket, input);
+		printf("[%d]>>> %s\n", client_socket, input);
 		
-		printf("Before parsing");
+		// printf("Before parsing");
         char* commands[MAX_COMMANDS];   // array to store the commands after parsing input
         
         // parse the input and store the commands in the commands array
         // this separates the commands by pipes
 		
         int commands_count = parse_input(input, commands);
-		printf("After parsing");
+		// printf("After parsing");
         // check if input is empty or made with only whitespace characters
         if (commands_count <= 0) {
             continue;
