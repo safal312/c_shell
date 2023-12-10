@@ -303,14 +303,14 @@ void execute(char **commands, int commands_count, int c_socket, ThreadNode *curr
 
                         // increment the round number for that node
                         curr_node->round++;
-                        
+
                         gettimeofday(&end_time, NULL); // Record the start time
                         // time taken in int
                         double time_taken = (end_time.tv_sec - start_time.tv_sec) +
                                             (end_time.tv_usec - start_time.tv_usec) / 1e6;
 
                         // print time taken
-                        printf("Time taken: %f\n", time_taken);
+                        // printf("Time taken: %f\n", time_taken);
 
                         curr_node->remaining_time -= (int)time_taken;
                         if (curr_node->remaining_time < 0)
