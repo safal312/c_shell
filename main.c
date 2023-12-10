@@ -138,18 +138,15 @@ void* ThreadRun(void * args){
 		}
 		// print buffer which contains the client contents
 		input[bytes_received] = '\0';
-		printf("Before printing\n");
-		printf("Length of input: %ld\n",strlen(input));
-		// printf("[%d]>>> %s\n", client_socket, input);
-		printf("after printing");
-		printf("Before parsing");
-        char* commands[MAX_COMMANDS];   // array to store the commands after parsing input
-        
+		
+		printf("[%d]>>> %s\n", client_socket, input);
+		
+        // sleep(5);
         // parse the input and store the commands in the commands array
         // this separates the commands by pipes
-		
+		// continue;
+        char* commands[MAX_COMMANDS];   // array to store the commands after parsing input
         int commands_count = parse_input(input, commands);
-		printf("After parsing");
         // check if input is empty or made with only whitespace characters
         if (commands_count <= 0) {
             continue;
@@ -162,6 +159,7 @@ void* ThreadRun(void * args){
             printf("[%d]--- client disconnected\n", client_socket);
             break;
         }
+		// sleep(5);
 
 		int rem_time = DEFAULT_WAIT_TIME;
 		int sc = 0;
@@ -173,8 +171,9 @@ void* ThreadRun(void * args){
 			strtok(command_copy, " ");
 			char* time = strtok(NULL, " ");
 
-			int time_temp = atoi(time);
-			if (time != NULL && time_temp != 0) {
+			printf("after and %s\n", time);
+			if (time != NULL) {
+				int time_temp = atoi(time);
 				// get the remaining time from the command
 				rem_time = time_temp;
 			}
