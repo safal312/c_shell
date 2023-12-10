@@ -8,3 +8,4 @@
 #define RESET_TEXT "\x1b[0m"
 
 extern sem_t continue_semaphore;
+

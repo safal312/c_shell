@@ -30,6 +30,8 @@ void func(int sock)
 			continue;
     	}
 
+		if (strcmp(buff, "") == 0) continue; //checks if the string is empty
+
 		// send command to the server from client
 		// printf("Sending: %s\n", buff);
 		if (send(sock, buff, sizeof(buff), 0) == -1) {

@@ -23,8 +23,6 @@
 //compile using -lpthread
 //run multiple clients in several terminal windows
 void* ThreadRun(void *);
-void* scheduler_thread(void*);
-
 #include "utils/parser.h"           // for parse_input
 #include "shell_commands/commands.h"        // for executing commands
 #include "utils/waitlist.h"			// for waitlist
@@ -128,19 +126,30 @@ void* ThreadRun(void * args){
         char input[MAX_INPUT];          // array to store input from the terminal
 		bzero(input, sizeof(input));
 
+		ssize_t bytes_received = recv(client_socket, &input, sizeof(input), 0);
 		// read the message from client and copy it in buffer
-		if (recv(client_socket, &input, sizeof(input), 0) == -1) {
+		if (bytes_received == -1) {
             perror("Error recieving from client");
             break;
         }
-		printf("[%d]>>> %s\n", client_socket, input);
-	
+		if (bytes_received == 0) {
+			printf("[%d]--- client disconnected\n", client_socket);
+			break;
+		}
+		// print buffer which contains the client contents
+		input[bytes_received] = '\0';
+		printf("Before printing\n");
+		printf("Length of input: %ld\n",strlen(input));
+		// printf("[%d]>>> %s\n", client_socket, input);
+		printf("after printing");
+		printf("Before parsing");
         char* commands[MAX_COMMANDS];   // array to store the commands after parsing input
         
         // parse the input and store the commands in the commands array
         // this separates the commands by pipes
+		
         int commands_count = parse_input(input, commands);
-
+		printf("After parsing");
         // check if input is empty or made with only whitespace characters
         if (commands_count <= 0) {
             continue;
@@ -155,19 +164,22 @@ void* ThreadRun(void * args){
         }
 
 		int rem_time = DEFAULT_WAIT_TIME;
+		int sc = 0;
+
 		// check if the given command is a program
 		if (strncmp(commands[0], "./", 2) == 0) {
 			// check if the user has given a time limit
 			char* command_copy = strdup(commands[0]);
 			strtok(command_copy, " ");
 			char* time = strtok(NULL, " ");
-			
+
 			int time_temp = atoi(time);
 			if (time != NULL && time_temp != 0) {
 				// get the remaining time from the command
 				rem_time = time_temp;
 			}
 		} else {
+			sc = 1;
 			rem_time = -1;
 		}
 
@@ -175,12 +187,12 @@ void* ThreadRun(void * args){
 		// critical section
 		sem_wait(&add_node_sm);
 		
-		ThreadNode* curr_node = addNode(&waiting_list, *current_thread, client_socket, rem_time, 2, 8);
+		ThreadNode* curr_node = addNode(&waiting_list, *current_thread, client_socket, rem_time, sc, 3);
 		printf("(%d)--- ", client_socket);
 		printf(BLUE_TEXT "created " RESET_TEXT);
 		printf("(%d)\n", rem_time);
 		
-		sem_post(&(continue_semaphore));
+		if(curr_node->sc == 0) sem_post(&(continue_semaphore));
 		sem_post(&add_node_sm);
 
         // execute the commands
