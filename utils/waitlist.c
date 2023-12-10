@@ -10,20 +10,18 @@
 #include "../globals.h"
 
 
-// #define FIRST_ROUND_QUANTUM 3
-// #define REMAINING_ROUND_QUANTUM 7
 
 // // Global variables
 // ThreadNode* waiting_list = NULL; // Head of the global waiting list
 
 // Function to add a new thread to the waiting list
-ThreadNode* addNode(NodeList* list, pthread_t thread, int client, int remaining_time, int algo, int quantum) {
+ThreadNode* addNode(NodeList* list, pthread_t thread, int client, int remaining_time, int sc, int quantum) {
     ThreadNode* new_node = (ThreadNode*)malloc(sizeof(ThreadNode));
+    new_node->sc = sc;
     new_node->done = 0;
     new_node->round = 1;
     new_node->thread = thread;
     new_node->client = client;
-    new_node->algo = algo;
     new_node->quantum = quantum;
     new_node->remaining_time = remaining_time;
     // every node has a semaphore which starts at 0, by default all the nodes are paused

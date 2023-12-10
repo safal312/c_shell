@@ -23,8 +23,6 @@
 //compile using -lpthread
 //run multiple clients in several terminal windows
 void* ThreadRun(void *);
-void* scheduler_thread(void*);
-
 #include "utils/parser.h"           // for parse_input
 #include "shell_commands/commands.h"        // for executing commands
 #include "utils/waitlist.h"			// for waitlist
@@ -155,6 +153,7 @@ void* ThreadRun(void * args){
         }
 
 		int rem_time = DEFAULT_WAIT_TIME;
+		int sc = 0;
 		// check if the given command is a program
 		if (strncmp(commands[0], "./", 2) == 0) {
 			// check if the user has given a time limit
@@ -168,6 +167,7 @@ void* ThreadRun(void * args){
 				rem_time = time_temp;
 			}
 		} else {
+			sc = 1;
 			rem_time = -1;
 		}
 
@@ -175,12 +175,12 @@ void* ThreadRun(void * args){
 		// critical section
 		sem_wait(&add_node_sm);
 		
-		ThreadNode* curr_node = addNode(&waiting_list, *current_thread, client_socket, rem_time, 2, 8);
+		ThreadNode* curr_node = addNode(&waiting_list, *current_thread, client_socket, rem_time, sc, 3);
 		printf("(%d)--- ", client_socket);
 		printf(BLUE_TEXT "created " RESET_TEXT);
 		printf("(%d)\n", rem_time);
 		
-		sem_post(&(continue_semaphore));
+		if(curr_node->sc == 0) sem_post(&(continue_semaphore));
 		sem_post(&add_node_sm);
 
         // execute the commands
