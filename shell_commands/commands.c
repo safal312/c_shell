@@ -1,4 +1,4 @@
-//Include necessary libraries
+// Include necessary libraries
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -183,6 +183,9 @@ void execute(char **commands, int commands_count, int c_socket, ThreadNode *curr
         exit(EXIT_FAILURE);
     }
 
+    printf("(%d)--- ", c_socket);
+    printf(GREEN_TEXT "started " RESET_TEXT);
+    printf("(%d)\n", curr_node->remaining_time);
     // iterate over all commands separated by pipes
     for (int i = 0; i < commands_count; i++)
     {
@@ -264,13 +267,7 @@ void execute(char **commands, int commands_count, int c_socket, ThreadNode *curr
                     // all threads will wait at this semaphore for the scheduler to post it
                     sem_wait(&curr_node->semaphore);
                     // check if semaphore posted for the first time
-                    if (curr_node->remaining_time == remtime)
-                    {
-                        printf("(%d)--- ", c_socket);
-                        printf(GREEN_TEXT "started " RESET_TEXT);
-                        printf("(%d)\n", curr_node->remaining_time);
-                    }
-                    else
+                    if (curr_node->remaining_time < remtime)
                     {
                         printf("(%d)--- ", c_socket);
                         printf(GREEN_TEXT "running " RESET_TEXT);
@@ -346,10 +343,6 @@ void execute(char **commands, int commands_count, int c_socket, ThreadNode *curr
             }
             else
             {
-                printf("(%d)--- ", c_socket);
-                printf(GREEN_TEXT "started " RESET_TEXT);
-                printf("(%d)\n", curr_node->remaining_time);
-
                 // if just a shell command, wait for child to finish and post continue_semaphore
                 waitpid(pid, &status, 0);
             }
